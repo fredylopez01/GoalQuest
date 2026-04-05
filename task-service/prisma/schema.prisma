@@ -3,11 +3,68 @@
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
+// generator client {
+//   provider = "prisma-client"
+//   output   = "../generated/prisma"
+// }
+
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum StateGoal {
+  pending
+  completed
+  expired
+}
+
+enum DifficultyLevel {
+  easy
+  middle
+  high
+}
+
+model Goal {
+  id           Int       @id @default(autoincrement())
+  userId       String    @map("user_id")
+  name         String    @db.VarChar(200)
+  description  String?
+  endDate      DateTime? @map("end_date")
+  state        StateGoal @default(pending)
+  maxDaysLater Int?      @map("max_days_later")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  tasks        Task[]
+
+  @@map("goals")
+}
+
+model Task {
+  id              Int             @id @default(autoincrement())
+  goalId          Int             @map("goal_id")
+  goal            Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  name            String          @db.VarChar(200)
+  state           StateGoal       @default(pending)
+  difficultyLevel DifficultyLevel @map("difficulty_level")
+  limitDate       DateTime?       @map("limit_date")
+  frequency       Int             @default(0) // 0=única, 1=diaria, 7=semanal, 15=quincenal
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  completions     TaskCompletion[]
+
+  @@map("tasks")
+}
+
+model TaskCompletion {
+  id          Int      @id @default(autoincrement())
+  taskId      Int      @map("task_id")
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  xpAwarded   Int      @default(0) @map("xp_awarded")
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  @@map("task_completions")
 }
