@@ -1,0 +1,64 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.6.1">
+  <diagram name="Page-1" id="5f0bae14-7c28-e335-631c-24af17079c00">
+    <mxGraphModel dx="1090" dy="639" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" background="none" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="atiTV131NCT89NatHT7F-12" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="300" width="1030" x="1" y="8" as="geometry" />
+        </mxCell>
+        <mxCell id="39150e848f15840c-1" parent="1" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;rounded=0;shadow=0;comic=0;labelBackgroundColor=none;strokeWidth=1;fontFamily=Verdana;fontSize=12" value="Client" vertex="1">
+          <mxGeometry height="140" width="160" x="9" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="39150e848f15840c-2" parent="1" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;rounded=0;shadow=0;comic=0;labelBackgroundColor=none;strokeWidth=1;fontFamily=Verdana;fontSize=12" value="Database" vertex="1">
+          <mxGeometry height="90" width="120" x="850" y="127.5" as="geometry" />
+        </mxCell>
+        <mxCell id="39150e848f15840c-3" parent="1" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;rounded=0;shadow=0;comic=0;labelBackgroundColor=none;strokeWidth=1;fontFamily=Verdana;fontSize=12" value="Backend" vertex="1">
+          <mxGeometry height="170" width="510" x="197" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-1" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;Controllers" vertex="1">
+          <mxGeometry height="45" width="150" x="200" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-2" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;Repositories" vertex="1">
+          <mxGeometry height="45" width="150" x="530" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-3" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;Services" vertex="1">
+          <mxGeometry height="45" width="150" x="360" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-4" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;ORM" vertex="1">
+          <mxGeometry height="45" width="150" x="522" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-6" edge="1" parent="1" source="39150e848f15840c-3" style="endArrow=open;endSize=12;dashed=1;html=1;rounded=0;exitX=0;exitY=0;exitDx=100;exitDy=0;exitPerimeter=0;entryX=0.469;entryY=0.958;entryDx=0;entryDy=0;entryPerimeter=0;" target="39150e848f15840c-2" value="Use">
+          <mxGeometry relative="1" width="160" as="geometry">
+            <Array as="points">
+              <mxPoint x="825" y="170" />
+            </Array>
+            <mxPoint x="915" y="160" as="sourcePoint" />
+            <mxPoint x="873" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-7" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;Entities" vertex="1">
+          <mxGeometry height="45" width="150" x="360" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-8" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;GUI" vertex="1">
+          <mxGeometry height="45" width="130" x="20" y="127.5" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-9" edge="1" parent="1" source="39150e848f15840c-1" style="endArrow=none;html=1;rounded=0;exitX=0;exitY=0;exitDx=75;exitDy=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=90;entryDy=510;entryPerimeter=0;" target="39150e848f15840c-3" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="440" y="260" as="sourcePoint" />
+            <mxPoint x="490" y="210" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-10" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="" vertex="1">
+          <mxGeometry height="40" width="60" x="870" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="atiTV131NCT89NatHT7F-11" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontSize=16;fontStyle=1" value="Diagrama de despliegue" vertex="1">
+          <mxGeometry height="30" width="360" x="300" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="NZk07nbQVL8Dx6MirELl-1" parent="1" style="shape=component;align=left;spacingLeft=36;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;&lt;component&gt;&gt;&#xa;UseCases" vertex="1">
+          <mxGeometry height="45" width="150" x="197" y="180.5" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
