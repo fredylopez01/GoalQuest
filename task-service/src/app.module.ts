@@ -7,7 +7,12 @@ import { TasksModule } from './tasks/tasks.module';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }),PrismaModule, GoalsModule, TasksModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    GoalsModule,
+    TasksModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
