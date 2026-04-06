@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -8,9 +15,12 @@ import {
 import { GoalsService } from './goals.service';
 import { GoalResponseDto } from './dto/goal-response.dto';
 import { CreateGoalDto } from './dto/create-goal.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Goals')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('goals')
 export class GoalsController {
   constructor(private readonly goalsService: GoalsService) {}
@@ -24,19 +34,12 @@ export class GoalsController {
     type: GoalResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Error de validación' })
-  async createGoal(@Body() dto: CreateGoalDto): Promise<GoalResponseDto> {
-    const goal = await this.goalsService.createGoal('user-id-placeholder', dto);
-    const goalResponse: GoalResponseDto = {
-      id: goal.id,
-      userId: goal.userId,
-      name: goal.name,
-      description: goal.description,
-      endDate: goal.endDate,
-      state: goal.state,
-      maxDaysLater: goal.maxDaysLater,
-      createdAt: goal.createdAt,
-      updatedAt: goal.updatedAt,
-    };
-    return goalResponse;
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async createGoal(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: CreateGoalDto,
+  ): Promise<GoalResponseDto> {
+    const goal = await this.goalsService.createGoal(userId, dto);
+    return goal;
   }
 }
