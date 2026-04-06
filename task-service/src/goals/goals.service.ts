@@ -47,4 +47,16 @@ export class GoalsService {
 
     return goal;
   }
+
+  async editGoal(
+    id: number,
+    dataToUpdate: Partial<CreateGoalDto>,
+  ): Promise<Goal> {
+    const updatedGoal = await this.prisma.goal.update({
+      where: { id },
+      data: dataToUpdate,
+    });
+
+    return updatedGoal;
+  }
 }

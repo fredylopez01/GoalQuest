@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -75,5 +76,25 @@ export class GoalsController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<GoalResponseDto> {
     return this.goalsService.findOneByUser(id, userId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Editar una meta existente' })
+  @ApiResponse({
+    status: 200,
+    description: 'Meta editada exitosamente',
+    type: GoalResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Error de validación' })
+  @ApiResponse({ status: 404, description: 'Meta no encontrada' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta meta' })
+  async editGoal(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dataToUpdate: Partial<CreateGoalDto>,
+  ): Promise<GoalResponseDto> {
+    await this.goalsService.findOneByUser(id, userId);
+    return this.goalsService.editGoal(id, dataToUpdate);
   }
 }
