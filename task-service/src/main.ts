@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
+  const logger = new Logger('TaskService');
+
   const app = await NestFactory.create(AppModule);
 
   app.useGlobalPipes(
@@ -31,7 +33,8 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`Task Service corriendo en http://localhost:${port}`);
-  console.log(`Swagger en http://localhost:${port}/api/docs`);
+
+  logger.log(`Task Service corriendo en http://localhost:${port}`);
+  logger.log(`Swagger en http://localhost:${port}/api/docs`);
 }
 bootstrap();

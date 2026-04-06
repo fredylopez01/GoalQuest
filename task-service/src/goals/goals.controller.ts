@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -41,5 +44,36 @@ export class GoalsController {
   ): Promise<GoalResponseDto> {
     const goal = await this.goalsService.createGoal(userId, dto);
     return goal;
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Listar todas las metas del usuario' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de metas',
+    type: [GoalResponseDto],
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async findAll(
+    @CurrentUser('userId') userId: string,
+  ): Promise<GoalResponseDto[]> {
+    return this.goalsService.findAllByUser(userId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener detalle de una meta' })
+  @ApiResponse({
+    status: 200,
+    description: 'Detalle de la meta',
+    type: GoalResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Meta no encontrada' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta meta' })
+  async findOne(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<GoalResponseDto> {
+    return this.goalsService.findOneByUser(id, userId);
   }
 }
