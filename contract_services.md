@@ -1,1986 +1,1965 @@
-## Distribución de Microservicios
-
-| Microservicio | Lenguaje | BD | ORM |
-|---|---|---|---|
-| **API Gateway** | Java (Spring Boot) | — | — |
-| **Identity Service** | Java (Spring Boot) | MySQL | Hibernate/JPA |
-| **Goal & Task Service** | NestJS | PostgreSQL | Prisma |
-| **Gamification Service** | Python (FastAPI) | MongoDB | Motor (async MongoDB driver) + Pydantic |
-| **Challenge Service** | NestJS | PostgreSQL | Prisma |
+## GOALQUEST — Contrato de Microservicios
 
 ---
 
-## CONTRATO COMPLETO DE APIs
+## Arquitectura General
 
-### MICROSERVICIO 1: IDENTITY SERVICE (Java Spring Boot + MySQL)
+```
+Frontend → Eureka Server/Gateway (:8761) → Microservicios
+```
 
-**Responsabilidades:** Registro, autenticación, gestión de usuarios, perfiles, roles y auditoría.
+| Servicio             | Tech             | BD              | Puerto | ORM/ODM                 |
+| -------------------- | ---------------- | --------------- | ------ | ----------------------- |
+| Eureka Server        | Java Spring Boot | —               | 8761   | —                       |
+| Identity Service     | Java Spring Boot | PostgreSQL      | 8081   | Hibernate/JPA           |
+| Task Service         | NestJS           | PostgreSQL      | 3001   | Prisma                  |
+| Gamification Service | Python FastAPI   | Redis + MongoDB | 8000   | redis-py + Beanie/Motor |
+| Challenge Service    | NestJS           | MongoDB         | 3002   | Mongoose                |
 
-**Entidades en BD:**
+## Distribución por Desarrollador
+
+| Dev       | Servicios                        | Tech             | BD                   |
+| --------- | -------------------------------- | ---------------- | -------------------- |
+| **Dev A** | Eureka Server + Identity Service | Java Spring Boot | PostgreSQL           |
+| **Dev B** | Task Service + Challenge Service | NestJS           | PostgreSQL + MongoDB |
+| **Dev C** | Gamification Service             | FastAPI          | Redis + MongoDB      |
+
+---
+
+| Microservicio        | Endpoints Públicos | Endpoints Internos | Total  |
+| -------------------- | ------------------ | ------------------ | ------ |
+| Identity Service     | 8                  | 2                  | **10** |
+| Task Service         | 12                 | 2 (llama a otros)  | **14** |
+| Gamification Service | 9                  | 5                  | **14** |
+| Challenge Service    | 6                  | 2                  | **8**  |
+| **TOTAL**            | **35**             | **11**             | **46** |
+
+## Convenciones Generales
+
+```
+- IDs de usuario: UUID (string)
+- IDs de entidades en PostgreSQL: int (autoincrement)
+- IDs de entidades en MongoDB: string (ObjectId)
+- Fechas: ISO 8601 (string)
+- Autenticación: Header "Authorization: Bearer <token>"
+- Comunicación interna: Header "X-Internal-Service-Key: <secret>"
+- Los servicios se llaman entre sí usando el nombre registrado en Eureka
+```
+
+**Formato estándar de error:**
+
+```
+{
+    statusCode: int,
+    error: string,
+    message: string | string[]
+}
+```
+
+**Formato estándar de paginación:**
+
+```
+{
+    data: T[],
+    pagination: {
+        page: int,
+        limit: int,
+        total: int
+    }
+}
+```
+
+---
+
+---
+
+# MICROSERVICIO 1: IDENTITY SERVICE
+
+**Nombre en Eureka:** `identity-service`
+**Puerto:** `8081`
+**Tech:** Java Spring Boot + PostgreSQL + Hibernate/JPA
+
+---
+
+## Modelo de Datos (PostgreSQL)
 
 ```sql
--- users
 CREATE TABLE users (
-    id VARCHAR(36) PRIMARY KEY, -- UUID
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) UNIQUE NOT NULL,
+    id          UUID PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    email       VARCHAR(150) UNIQUE NOT NULL,
     hash_password VARCHAR(255) NOT NULL,
-    rol ENUM('USER', 'ADMIN') DEFAULT 'USER',
-    avatar_url VARCHAR(500) NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    rol         VARCHAR(20) DEFAULT 'USER',
+    avatar_url  VARCHAR(500),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- audit_log
 CREATE TABLE audit_log (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id VARCHAR(36) NOT NULL,
-    action VARCHAR(100) NOT NULL, -- LOGIN, LOGOUT, DELETE_TASK, CHALLENGE_CREATED, etc.
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     UUID NOT NULL REFERENCES users(id),
+    action      VARCHAR(100) NOT NULL,
     description TEXT,
-    ip_address VARCHAR(45),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    ip_address  VARCHAR(45),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-#### Endpoints:
+---
+
+## DTOs
+
+```
+RegisterRequestDTO {
+    name:     string   (requerido, min: 2, max: 100)
+    email:    string   (requerido, formato email)
+    password: string   (requerido, min: 8)
+}
+
+LoginRequestDTO {
+    email:    string   (requerido, formato email)
+    password: string   (requerido)
+}
+
+LoginResponseDTO {
+    access_token: string
+    token_type:   string
+    expires_in:   int
+    user:         UserDTO
+}
+
+UserDTO {
+    id:         string (UUID)
+    name:       string
+    email:      string
+    rol:        string
+    avatar_url: string | null
+    created_at: string (ISO 8601)
+}
+
+ProfileUpdateDTO {
+    name:       string | null  (opcional, min: 2, max: 100)
+    avatar_url: string | null  (opcional)
+}
+
+ValidateTokenRequestDTO {
+    token: string (requerido)
+}
+
+ValidateTokenResponseDTO {
+    valid:   boolean
+    user_id: string (UUID)
+    email:   string
+    rol:     string
+}
+
+AuditLogRequestDTO {
+    user_id:     string (UUID, requerido)
+    action:      string (requerido)
+    description: string (requerido)
+    ip_address:  string | null (opcional)
+}
+
+AuditLogDTO {
+    id:          int
+    user_id:     string (UUID)
+    action:      string
+    description: string
+    ip_address:  string | null
+    created_at:  string (ISO 8601)
+}
+```
 
 ---
 
-**1. POST /auth/register**
+## Endpoints
 
+### Autenticación
+
+---
+
+**IS-01 | POST /auth/register**
 Registrar un nuevo usuario.
 
-```json
-Request Body:
+```
+Auth: No
+
+Request Body: RegisterRequestDTO
 {
-    "name": "string",          // requerido, min 2, max 100
-    "email": "string",         // requerido, formato email válido
-    "password": "string"       // requerido, min 8 caracteres
+    name:     string
+    email:    string
+    password: string
 }
 
-Response 201:
+Response 201: UserDTO
 {
-    "id": "uuid-string",
-    "name": "string",
-    "email": "string",
-    "rol": "USER",
-    "created_at": "2025-01-15T10:30:00Z"
+    id:         string (UUID)
+    name:       string
+    email:      string
+    rol:        string
+    avatar_url: null
+    created_at: string (ISO 8601)
 }
 
-Response 400:
-{
-    "error": "VALIDATION_ERROR",
-    "message": "El email ya está registrado"
-}
+Errores:
+  400 - VALIDATION_ERROR: Datos inválidos
+  409 - EMAIL_EXISTS: El email ya está registrado
+
+Notas:
+  - Hashear password con BCrypt
+  - Después de crear el usuario, llamar a gamification-service:
+    POST /gamification/profile { user_id: <nuevo_uuid> }
 ```
 
 ---
 
-**2. POST /auth/login**
-
+**IS-02 | POST /auth/login**
 Autenticar usuario y retornar JWT.
 
-```json
-Request Body:
+```
+Auth: No
+
+Request Body: LoginRequestDTO
 {
-    "email": "string",
-    "password": "string"
+    email:    string
+    password: string
 }
 
-Response 200:
+Response 200: LoginResponseDTO
 {
-    "access_token": "eyJhbGciOiJIUzI1NiIs...",
-    "token_type": "Bearer",
-    "expires_in": 3600,
-    "user": {
-        "id": "uuid-string",
-        "name": "string",
-        "email": "string",
-        "rol": "USER"
+    access_token: string
+    token_type:   string ("Bearer")
+    expires_in:   int (segundos)
+    user: {
+        id:    string (UUID)
+        name:  string
+        email: string
+        rol:   string
     }
 }
 
-Response 401:
-{
-    "error": "INVALID_CREDENTIALS",
-    "message": "Email o contraseña incorrectos"
-}
+Errores:
+  401 - INVALID_CREDENTIALS: Email o contraseña incorrectos
+
+Notas:
+  - Registrar en audit_log: action = "LOGIN"
 ```
 
 ---
 
-**3. POST /auth/logout**
-
-Invalidar sesión (registrar en auditoría).
+**IS-03 | POST /auth/logout**
+Cerrar sesión del usuario.
 
 ```
-Headers: Authorization: Bearer <token>
+Auth: Bearer Token
 
 Response 200:
 {
-    "message": "Sesión cerrada exitosamente"
+    message: string
 }
+
+Notas:
+  - Registrar en audit_log: action = "LOGOUT"
 ```
 
 ---
 
-**4. GET /users/profile**
+**IS-04 | POST /auth/validate-token**
+Validar un JWT. Uso interno entre microservicios.
 
+```
+Auth: No (endpoint interno)
+
+Request Body: ValidateTokenRequestDTO
+{
+    token: string
+}
+
+Response 200: ValidateTokenResponseDTO
+{
+    valid:   boolean
+    user_id: string (UUID)
+    email:   string
+    rol:     string
+}
+
+Errores:
+  401 - Token inválido o expirado → { valid: false, message: string }
+```
+
+---
+
+### Usuarios
+
+---
+
+**IS-05 | GET /users/profile**
 Obtener perfil del usuario autenticado.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
-Response 200:
+Response 200: UserDTO
 {
-    "id": "uuid-string",
-    "name": "string",
-    "email": "string",
-    "rol": "USER",
-    "avatar_url": "string | null",
-    "created_at": "2025-01-15T10:30:00Z"
+    id:         string (UUID)
+    name:       string
+    email:      string
+    rol:        string
+    avatar_url: string | null
+    created_at: string (ISO 8601)
 }
 ```
 
 ---
 
-**5. PATCH /users/profile**
-
+**IS-06 | PATCH /users/profile**
 Editar perfil del usuario autenticado.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
-Request Body (todos opcionales):
+Request Body: ProfileUpdateDTO
 {
-    "name": "string",
-    "avatar_url": "string"
+    name:       string | null  (opcional)
+    avatar_url: string | null  (opcional)
 }
 
-Response 200:
-{
-    "id": "uuid-string",
-    "name": "string",
-    "email": "string",
-    "avatar_url": "string",
-    "updated_at": "2025-01-15T12:00:00Z"
-}
+Response 200: UserDTO (actualizado)
+
+Errores:
+  400 - VALIDATION_ERROR: Datos inválidos
 ```
 
 ---
 
-**6. GET /users/{userId}**
+**IS-07 | GET /users/{userId}**
+Obtener información pública de un usuario por ID.
 
-Obtener información pública de un usuario (usado internamente por Challenge Service para verificar que el rival existe).
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- userId: string (UUID)
+  userId: string (UUID)
 
 Response 200:
 {
-    "id": "uuid-string",
-    "name": "string",
-    "avatar_url": "string | null",
-    "rol": "USER"
+    id:         string (UUID)
+    name:       string
+    avatar_url: string | null
+    rol:        string
 }
 
-Response 404:
-{
-    "error": "USER_NOT_FOUND",
-    "message": "El usuario no existe"
-}
+Errores:
+  404 - USER_NOT_FOUND: El usuario no existe
 ```
 
 ---
 
-**7. GET /users**
+**IS-08 | GET /users**
+Buscar/listar usuarios.
 
-Listar usuarios (solo ADMIN) o buscar usuarios por nombre/email (para desafíos).
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Query Params:
-- search: string (opcional, busca por nombre o email)
-- page: int (default 1)
-- limit: int (default 20)
+  search: string  (opcional, busca por nombre o email)
+  page:   int     (default: 1)
+  limit:  int     (default: 20)
 
 Response 200:
 {
-    "data": [
-        {
-            "id": "uuid-string",
-            "name": "string",
-            "email": "string",
-            "rol": "USER",
-            "created_at": "2025-01-15T10:30:00Z"
-        }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 20,
-        "total": 150
+    data: UserDTO[]
+    pagination: {
+        page:  int
+        limit: int
+        total: int
     }
 }
 ```
 
 ---
 
-**8. POST /auth/validate-token**
-
-Endpoint interno para que otros microservicios validen el JWT sin conocer el secreto.
-
-```json
-Request Body:
-{
-    "token": "eyJhbGciOiJIUzI1NiIs..."
-}
-
-Response 200:
-{
-    "valid": true,
-    "user_id": "uuid-string",
-    "rol": "USER",
-    "email": "string"
-}
-
-Response 401:
-{
-    "valid": false,
-    "message": "Token inválido o expirado"
-}
-```
+### Auditoría
 
 ---
 
-**9. GET /audit/logs**
+**IS-09 | GET /audit/logs**
+Obtener logs de auditoría. Solo ADMIN.
 
-Obtener logs de auditoría (solo ADMIN).
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token (rol: ADMIN)
 
 Query Params:
-- user_id: string (opcional)
-- action: string (opcional)
-- from: date (opcional)
-- to: date (opcional)
-- page: int (default 1)
-- limit: int (default 50)
+  user_id: string  (opcional)
+  action:  string  (opcional)
+  from:    string  (opcional, ISO date)
+  to:      string  (opcional, ISO date)
+  page:    int     (default: 1)
+  limit:   int     (default: 50)
 
 Response 200:
 {
-    "data": [
-        {
-            "id": 1,
-            "user_id": "uuid-string",
-            "action": "LOGIN",
-            "description": "Inicio de sesión exitoso",
-            "ip_address": "192.168.1.1",
-            "created_at": "2025-01-15T10:30:00Z"
-        }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 50,
-        "total": 500
+    data: AuditLogDTO[]
+    pagination: {
+        page:  int
+        limit: int
+        total: int
     }
 }
+
+Errores:
+  403 - FORBIDDEN: No tiene permisos de administrador
 ```
 
 ---
 
-**10. POST /audit/logs**
+**IS-10 | POST /audit/logs**
+Registrar un log de auditoría. Uso interno.
 
-Endpoint interno para que otros microservicios registren acciones de auditoría.
+```
+Auth: X-Internal-Service-Key
 
-```json
-Request Body:
+Request Body: AuditLogRequestDTO
 {
-    "user_id": "uuid-string",
-    "action": "DELETE_TASK",          // LOGIN, LOGOUT, DELETE_TASK, DELETE_GOAL, CHALLENGE_CREATED, CHALLENGE_ACCEPTED, etc.
-    "description": "El usuario eliminó la tarea con id 45",
-    "ip_address": "192.168.1.1"       // opcional
+    user_id:     string (UUID)
+    action:      string
+    description: string
+    ip_address:  string | null
 }
 
 Response 201:
 {
-    "id": 1,
-    "message": "Log registrado exitosamente"
+    id:      int
+    message: string
 }
 ```
 
 ---
 
-### MICROSERVICIO 2: GOAL & TASK SERVICE (NestJS + PostgreSQL + Prisma)
+---
 
-**Responsabilidades:** CRUD completo de metas y tareas, marcar como completada, regeneración automática de tareas recurrentes, cálculo de progreso de metas.
+# MICROSERVICIO 2: TASK SERVICE
 
-**Schema Prisma:**
+**Nombre en Eureka:** `task-service`
+**Puerto:** `3001`
+**Tech:** NestJS + PostgreSQL + Prisma
+
+---
+
+## Modelo de Datos (Prisma Schema)
 
 ```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 enum StateGoal {
-    pending
-    completed
-    expired
+  pending
+  completed
+  expired
 }
 
 enum DifficultyLevel {
-    easy
-    middle
-    high
+  easy
+  middle
+  high
 }
 
 model Goal {
-    id          Int       @id @default(autoincrement())
-    userId      String    // UUID del Identity Service
-    name        String
-    description String?
-    endDate     DateTime?
-    state       StateGoal @default(pending)
-    createdAt   DateTime  @default(now())
-    maxDaysLater Int?     // días máximos de tolerancia
-    tasks       Task[]
+  id           Int       @id @default(autoincrement())
+  userId       String    @map("user_id")
+  name         String    @db.VarChar(200)
+  description  String?
+  endDate      DateTime? @map("end_date")
+  state        StateGoal @default(pending)
+  maxDaysLater Int?      @map("max_days_later")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  tasks        Task[]
+
+  @@map("goals")
 }
 
 model Task {
-    id              Int             @id @default(autoincrement())
-    goalId          Int
-    goal            Goal            @relation(fields: [goalId], references: [id])
-    name            String
-    state           StateGoal       @default(pending)
-    difficultyLevel DifficultyLevel
-    limitDate       DateTime?
-    frequency       Int             // en días: 1=diaria, 7=semanal, 15=quincenal, 0=no recurrente
-    createdAt       DateTime        @default(now())
-    completions     TaskCompletion[]
+  id              Int             @id @default(autoincrement())
+  goalId          Int             @map("goal_id")
+  goal            Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  userId          String          @map("user_id")
+  name            String          @db.VarChar(200)
+  state           StateGoal       @default(pending)
+  difficultyLevel DifficultyLevel @map("difficulty_level")
+  limitDate       DateTime?       @map("limit_date")
+  frequency       Int             @default(0)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  completions     TaskCompletion[]
+
+  @@map("tasks")
 }
 
 model TaskCompletion {
-    id          Int      @id @default(autoincrement())
-    taskId      Int
-    task        Task     @relation(fields: [taskId], references: [id])
-    completedAt DateTime @default(now())
-    xpAwarded   Int
-}
-```
+  id          Int      @id @default(autoincrement())
+  taskId      Int      @map("task_id")
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String   @map("user_id")
+  xpAwarded   Int      @default(0) @map("xp_awarded")
+  completedAt DateTime @default(now()) @map("completed_at")
 
-#### Endpoints:
-
----
-
-##### METAS (Goals)
-
-**1. POST /goals**
-
-Crear una meta.
-
-```json
-Headers: Authorization: Bearer <token>
-
-Request Body:
-{
-    "name": "string",              // requerido, min 1, max 200
-    "description": "string",       // opcional
-    "endDate": "2025-03-01",       // opcional, formato ISO
-    "maxDaysLater": 3              // opcional, días de tolerancia
-}
-
-Response 201:
-{
-    "id": 1,
-    "userId": "uuid-string",
-    "name": "Aprender inglés",
-    "description": "Estudiar inglés todos los días",
-    "endDate": "2025-03-01T00:00:00Z",
-    "state": "pending",
-    "maxDaysLater": 3,
-    "createdAt": "2025-01-15T10:30:00Z",
-    "tasks": []
+  @@map("task_completions")
 }
 ```
 
 ---
 
-**2. GET /goals**
+## DTOs
 
-Listar todas las metas del usuario autenticado.
+```
+CreateGoalDTO {
+    name:         string          (requerido, min: 1, max: 200)
+    description:  string | null   (opcional)
+    endDate:      string | null   (opcional, ISO 8601)
+    maxDaysLater: int | null      (opcional, min: 0)
+}
 
-```json
-Headers: Authorization: Bearer <token>
+UpdateGoalDTO {
+    name:         string | null   (opcional, min: 1, max: 200)
+    description:  string | null   (opcional)
+    endDate:      string | null   (opcional, ISO 8601)
+    maxDaysLater: int | null      (opcional, min: 0)
+}
 
-Query Params:
-- state: string (opcional: "pending", "completed", "expired")
-- page: int (default 1)
-- limit: int (default 10)
+GoalResponseDTO {
+    id:           int
+    userId:       string (UUID)
+    name:         string
+    description:  string | null
+    endDate:      string | null (ISO 8601)
+    state:        string (enum: pending, completed, expired)
+    maxDaysLater: int | null
+    progress:     float (0.0 - 1.0)
+    createdAt:    string (ISO 8601)
+    updatedAt:    string (ISO 8601)
+    tasks:        TaskSummaryDTO[]
+}
 
-Response 200:
-{
-    "data": [
-        {
-            "id": 1,
-            "userId": "uuid-string",
-            "name": "Aprender inglés",
-            "description": "Estudiar inglés todos los días",
-            "endDate": "2025-03-01T00:00:00Z",
-            "state": "pending",
-            "maxDaysLater": 3,
-            "createdAt": "2025-01-15T10:30:00Z",
-            "progress": 0.45,        // porcentaje calculado
-            "tasks": [
-                {
-                    "id": 1,
-                    "name": "Estudiar vocabulario",
-                    "state": "completed",
-                    "difficultyLevel": "middle",
-                    "frequency": 1
-                }
-            ]
+TaskSummaryDTO {
+    id:              int
+    name:            string
+    state:           string (enum: pending, completed, expired)
+    difficultyLevel: string (enum: easy, middle, high)
+    frequency:       int
+}
+
+CreateTaskDTO {
+    goalId:          int            (requerido)
+    name:            string         (requerido, min: 1, max: 200)
+    difficultyLevel: string         (requerido, enum: easy, middle, high)
+    limitDate:       string | null  (opcional, ISO 8601)
+    frequency:       int            (requerido, min: 0)
+}
+
+UpdateTaskDTO {
+    name:            string | null  (opcional, min: 1, max: 200)
+    difficultyLevel: string | null  (opcional, enum: easy, middle, high)
+    limitDate:       string | null  (opcional, ISO 8601)
+    frequency:       int | null     (opcional, min: 0)
+}
+
+TaskResponseDTO {
+    id:              int
+    goalId:          int
+    goalName:        string
+    userId:          string (UUID)
+    name:            string
+    state:           string (enum: pending, completed, expired)
+    difficultyLevel: string (enum: easy, middle, high)
+    limitDate:       string | null (ISO 8601)
+    frequency:       int
+    createdAt:       string (ISO 8601)
+    updatedAt:       string (ISO 8601)
+    lastCompletedAt: string | null (ISO 8601)
+}
+
+CompleteTaskResponseDTO {
+    task: {
+        id:          int
+        name:        string
+        state:       string
+        completedAt: string (ISO 8601)
+    }
+    gamification: {
+        xpAwarded:    int
+        totalXp:      int
+        currentLevel: int
+        streak: {
+            consecutiveDays: int
+            increased:       boolean
         }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 10,
-        "total": 5
+        newAchievements: AchievementDTO[]
+        leveledUp:       boolean
+    }
+    nextInstance: TaskResponseDTO | null
+}
+
+DailySummaryDTO {
+    date:                 string (ISO date)
+    totalTasks:           int
+    completedTasks:       int
+    pendingTasks:         int
+    completionPercentage: float
+    tasks:                TaskSummaryDTO[]
+}
+
+TaskCompletionDTO {
+    id:          int
+    taskId:      int
+    taskName:    string
+    xpAwarded:   int
+    completedAt: string (ISO 8601)
+}
+
+CompletionHistoryDTO {
+    data: TaskCompletionDTO[]
+    summary: {
+        totalCompleted: int
+        totalXpEarned:  int
     }
 }
 ```
 
 ---
 
-**3. GET /goals/:id**
+## Endpoints
 
-Obtener detalle de una meta.
+### Metas (Goals)
 
-```json
-Headers: Authorization: Bearer <token>
+---
 
-Path Params:
-- id: int
+**TS-01 | POST /goals**
+Crear una nueva meta.
+
+```
+Auth: Bearer Token
+
+Request Body: CreateGoalDTO
+{
+    name:         string
+    description:  string | null
+    endDate:      string | null
+    maxDaysLater: int | null
+}
+
+Response 201: GoalResponseDTO
+
+Errores:
+  400 - VALIDATION_ERROR
+  401 - UNAUTHORIZED
+```
+
+---
+
+**TS-02 | GET /goals**
+Listar metas del usuario autenticado.
+
+```
+Auth: Bearer Token
+
+Query Params:
+  state: string  (opcional, enum: pending, completed, expired)
+  page:  int     (default: 1)
+  limit: int     (default: 10)
 
 Response 200:
 {
-    "id": 1,
-    "userId": "uuid-string",
-    "name": "Aprender inglés",
-    "description": "Estudiar inglés todos los días",
-    "endDate": "2025-03-01T00:00:00Z",
-    "state": "pending",
-    "maxDaysLater": 3,
-    "createdAt": "2025-01-15T10:30:00Z",
-    "progress": 0.45,
-    "tasks": [
-        {
-            "id": 1,
-            "name": "Estudiar vocabulario",
-            "state": "pending",
-            "difficultyLevel": "middle",
-            "limitDate": "2025-01-20T00:00:00Z",
-            "frequency": 1,
-            "createdAt": "2025-01-15T10:30:00Z"
-        }
-    ]
-}
-
-Response 404:
-{
-    "error": "GOAL_NOT_FOUND",
-    "message": "La meta no existe"
+    data: GoalResponseDTO[]
+    pagination: { page: int, limit: int, total: int }
 }
 ```
 
 ---
 
-**4. PATCH /goals/:id**
+**TS-03 | GET /goals/:id**
+Obtener detalle de una meta con sus tareas.
 
+```
+Auth: Bearer Token
+
+Path Params:
+  id: int
+
+Response 200: GoalResponseDTO (con tasks completo)
+
+Errores:
+  404 - GOAL_NOT_FOUND
+  403 - FORBIDDEN (no es dueño)
+```
+
+---
+
+**TS-04 | PATCH /goals/:id**
 Editar una meta.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
-Request Body (todos opcionales):
+Request Body: UpdateGoalDTO
 {
-    "name": "string",
-    "description": "string",
-    "endDate": "2025-04-01",
-    "maxDaysLater": 5
+    name:         string | null
+    description:  string | null
+    endDate:      string | null
+    maxDaysLater: int | null
 }
 
-Response 200:
-{
-    "id": 1,
-    "name": "Aprender inglés avanzado",
-    "description": "...",
-    "endDate": "2025-04-01T00:00:00Z",
-    "state": "pending",
-    "maxDaysLater": 5,
-    "createdAt": "2025-01-15T10:30:00Z"
-}
+Response 200: GoalResponseDTO (actualizado)
+
+Errores:
+  400 - VALIDATION_ERROR
+  404 - GOAL_NOT_FOUND
+  403 - FORBIDDEN
 ```
 
 ---
 
-**5. DELETE /goals/:id**
-
+**TS-05 | DELETE /goals/:id**
 Eliminar una meta y todas sus tareas asociadas.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
 Response 200:
 {
-    "message": "Meta eliminada exitosamente"
+    message: string
 }
 
-Response 404:
-{
-    "error": "GOAL_NOT_FOUND",
-    "message": "La meta no existe"
-}
+Errores:
+  404 - GOAL_NOT_FOUND
+  403 - FORBIDDEN
+
+Notas:
+  - Elimina en cascada todas las tareas y task_completions
+  - Registrar en audit_log vía identity-service
 ```
 
 ---
 
-**6. PATCH /goals/:id/reopen**
+**TS-06 | PATCH /goals/:id/reopen**
+Reabrir una meta en estado completed o expired.
 
-Reabrir una meta completada o expirada.
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
-Response 200:
-{
-    "id": 1,
-    "state": "pending",
-    "message": "Meta reabierta exitosamente"
-}
+Response 200: GoalResponseDTO (con state: "pending")
+
+Errores:
+  404 - GOAL_NOT_FOUND
+  400 - INVALID_STATE (ya está en pending)
+  403 - FORBIDDEN
 ```
 
 ---
 
-##### TAREAS (Tasks)
+### Tareas (Tasks)
 
-**7. POST /tasks**
+---
 
+**TS-07 | POST /tasks**
 Crear una tarea asociada a una meta.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
-Request Body:
+Request Body: CreateTaskDTO
 {
-    "goalId": 1,                       // requerido
-    "name": "string",                  // requerido
-    "difficultyLevel": "easy",         // requerido: "easy" | "middle" | "high"
-    "limitDate": "2025-02-01",         // opcional
-    "frequency": 1                     // requerido: 0=única, 1=diaria, 7=semanal, 15=quincenal
+    goalId:          int
+    name:            string
+    difficultyLevel: string
+    limitDate:       string | null
+    frequency:       int
 }
 
-Response 201:
-{
-    "id": 1,
-    "goalId": 1,
-    "name": "Estudiar vocabulario",
-    "state": "pending",
-    "difficultyLevel": "easy",
-    "limitDate": "2025-02-01T00:00:00Z",
-    "frequency": 1,
-    "createdAt": "2025-01-15T10:30:00Z"
-}
+Response 201: TaskResponseDTO
 
-Response 404:
-{
-    "error": "GOAL_NOT_FOUND",
-    "message": "La meta asociada no existe"
-}
+Errores:
+  400 - VALIDATION_ERROR
+  404 - GOAL_NOT_FOUND
+  403 - FORBIDDEN (la meta no pertenece al usuario)
 ```
 
 ---
 
-**8. GET /tasks**
-
+**TS-08 | GET /tasks**
 Listar tareas del usuario autenticado.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Query Params:
-- goalId: int (opcional, filtrar por meta)
-- state: string (opcional: "pending", "completed", "expired")
-- frequency: int (opcional)
-- date: string (opcional, "2025-01-15", filtra tareas activas para ese día)
-- page: int (default 1)
-- limit: int (default 20)
+  goalId:    int     (opcional)
+  state:     string  (opcional, enum: pending, completed, expired)
+  frequency: int     (opcional)
+  date:      string  (opcional, ISO date, filtra tareas activas para ese día)
+  page:      int     (default: 1)
+  limit:     int     (default: 20)
 
 Response 200:
 {
-    "data": [
-        {
-            "id": 1,
-            "goalId": 1,
-            "goalName": "Aprender inglés",
-            "name": "Estudiar vocabulario",
-            "state": "pending",
-            "difficultyLevel": "easy",
-            "limitDate": "2025-02-01T00:00:00Z",
-            "frequency": 1,
-            "createdAt": "2025-01-15T10:30:00Z",
-            "lastCompletedAt": "2025-01-14T18:00:00Z"  // última vez completada o null
-        }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 20,
-        "total": 15
-    }
+    data: TaskResponseDTO[]
+    pagination: { page: int, limit: int, total: int }
 }
 ```
 
 ---
 
-**9. GET /tasks/:id**
+**TS-09 | GET /tasks/:id**
+Obtener detalle de una tarea con su historial de completaciones.
 
-Obtener detalle de una tarea.
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
-Response 200:
-{
-    "id": 1,
-    "goalId": 1,
-    "goalName": "Aprender inglés",
-    "name": "Estudiar vocabulario",
-    "state": "pending",
-    "difficultyLevel": "easy",
-    "limitDate": "2025-02-01T00:00:00Z",
-    "frequency": 1,
-    "createdAt": "2025-01-15T10:30:00Z",
-    "completions": [
-        {
-            "id": 1,
-            "completedAt": "2025-01-14T18:00:00Z",
-            "xpAwarded": 25
-        }
-    ]
-}
+Response 200: TaskResponseDTO (extendido con completions: TaskCompletionDTO[])
+
+Errores:
+  404 - TASK_NOT_FOUND
+  403 - FORBIDDEN
 ```
 
 ---
 
-**10. PATCH /tasks/:id**
-
+**TS-10 | PATCH /tasks/:id**
 Editar una tarea.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
-Request Body (todos opcionales):
+Request Body: UpdateTaskDTO
 {
-    "name": "string",
-    "difficultyLevel": "high",
-    "limitDate": "2025-03-01",
-    "frequency": 7
+    name:            string | null
+    difficultyLevel: string | null
+    limitDate:       string | null
+    frequency:       int | null
 }
 
-Response 200:
-{
-    "id": 1,
-    "goalId": 1,
-    "name": "Estudiar vocabulario avanzado",
-    "state": "pending",
-    "difficultyLevel": "high",
-    "limitDate": "2025-03-01T00:00:00Z",
-    "frequency": 7,
-    "createdAt": "2025-01-15T10:30:00Z"
-}
+Response 200: TaskResponseDTO (actualizado)
+
+Errores:
+  400 - VALIDATION_ERROR
+  404 - TASK_NOT_FOUND
+  403 - FORBIDDEN
 ```
 
 ---
 
-**11. DELETE /tasks/:id**
-
+**TS-11 | DELETE /tasks/:id**
 Eliminar una tarea.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
 Response 200:
 {
-    "message": "Tarea eliminada exitosamente"
+    message: string
 }
+
+Errores:
+  404 - TASK_NOT_FOUND
+  403 - FORBIDDEN
+
+Notas:
+  - Elimina en cascada las task_completions
+  - Registrar en audit_log vía identity-service
 ```
 
 ---
 
-**12. PATCH /tasks/:id/complete**
+**TS-12 | PATCH /tasks/:id/complete**
+Marcar una tarea como completada. **Endpoint más crítico del sistema.**
 
-Marcar tarea como completada. Este es el endpoint más crítico del sistema.
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: int
 
 Request Body: (vacío)
 
 Lógica interna:
-1. Verificar que la tarea existe y pertenece al usuario
-2. Verificar elegibilidad (no completada ya hoy si es recurrente)
-3. Actualizar state → completed
-4. Llamar al Gamification Service: POST /gamification/task-completed
-5. Si es recurrente (frequency > 0), generar siguiente instancia
-6. Retornar resultado combinado
+  1. Verificar que la tarea existe y pertenece al usuario
+  2. Verificar elegibilidad (no completada hoy si es recurrente)
+  3. Actualizar state → completed
+  4. Guardar TaskCompletion
+  5. Verificar si TODAS las tareas diarias (frequency=1) del usuario están completadas hoy
+  6. Llamar a gamification-service (Eureka):
+     POST /gamification/task-completed
+     Body: {
+         user_id: string (UUID),
+         task_id: int,
+         difficulty: string,
+         frequency: int,
+         all_daily_tasks_completed: boolean
+     }
+  7. Llamar a challenge-service (Eureka):
+     POST /challenges/update-progress
+     Body: {
+         user_id: string (UUID),
+         tasks_completed_today: int,
+         total_tasks_today: int,
+         xp_earned: int
+     }
+  8. Si frequency > 0 → crear nueva instancia de tarea con state: pending
+  9. Actualizar xpAwarded en TaskCompletion con lo que retornó gamification
 
-Response 200:
-{
-    "task": {
-        "id": 1,
-        "name": "Estudiar vocabulario",
-        "state": "completed",
-        "completedAt": "2025-01-15T18:00:00Z"
-    },
-    "gamification": {
-        "xpAwarded": 35,
-        "totalXp": 1250,
-        "currentLevel": 5,
-        "streak": {
-            "consecutiveDays": 7,
-            "increased": true
-        },
-        "newAchievements": [
-            {
-                "id": "ach-001",
-                "name": "Racha de 7 días",
-                "description": "Completa todas tus tareas por 7 días consecutivos",
-                "xpReward": 100
-            }
-        ],
-        "leveledUp": false
-    },
-    "nextInstance": {
-        "id": 52,
-        "name": "Estudiar vocabulario",
-        "state": "pending",
-        "limitDate": "2025-01-16T00:00:00Z",
-        "frequency": 1
-    }
-}
+Response 200: CompleteTaskResponseDTO
 
-Response 400:
-{
-    "error": "TASK_ALREADY_COMPLETED",
-    "message": "Esta tarea ya fue completada hoy"
-}
+Errores:
+  400 - TASK_ALREADY_COMPLETED
+  404 - TASK_NOT_FOUND
+  403 - FORBIDDEN
+```
 
-Response 404:
+---
+
+**TS-13 | GET /tasks/daily-summary**
+Obtener resumen de tareas del día actual.
+
+```
+Auth: Bearer Token
+
+Response 200: DailySummaryDTO
 {
-    "error": "TASK_NOT_FOUND",
-    "message": "La tarea no existe"
+    date:                 string
+    totalTasks:           int
+    completedTasks:       int
+    pendingTasks:         int
+    completionPercentage: float
+    tasks:                TaskSummaryDTO[]
 }
 ```
 
 ---
 
-**13. GET /tasks/daily-summary**
+**TS-14 | GET /tasks/completions**
+Historial de completaciones para un rango de fechas.
 
-Obtener resumen de tareas diarias del día actual.
-
-```json
-Headers: Authorization: Bearer <token>
-
-Response 200:
-{
-    "date": "2025-01-15",
-    "totalTasks": 8,
-    "completedTasks": 5,
-    "pendingTasks": 3,
-    "completionPercentage": 62.5,
-    "tasks": [
-        {
-            "id": 1,
-            "name": "Estudiar vocabulario",
-            "state": "completed",
-            "difficultyLevel": "easy",
-            "goalName": "Aprender inglés"
-        },
-        {
-            "id": 2,
-            "name": "Hacer ejercicio",
-            "state": "pending",
-            "difficultyLevel": "high",
-            "goalName": "Vida saludable"
-        }
-    ]
-}
 ```
-
----
-
-**14. GET /tasks/completions**
-
-Historial de completaciones (usado para reportes).
-
-```json
-Headers: Authorization: Bearer <token>
+Auth: Bearer Token
 
 Query Params:
-- from: date (requerido, "2025-01-01")
-- to: date (requerido, "2025-01-31")
-- taskId: int (opcional)
+  from:   string  (requerido, ISO date)
+  to:     string  (requerido, ISO date)
+  taskId: int     (opcional)
 
-Response 200:
+Response 200: CompletionHistoryDTO
 {
-    "data": [
-        {
-            "id": 1,
-            "taskId": 1,
-            "taskName": "Estudiar vocabulario",
-            "completedAt": "2025-01-15T18:00:00Z",
-            "xpAwarded": 25
-        }
-    ],
-    "summary": {
-        "totalCompleted": 45,
-        "totalXpEarned": 1125
+    data: TaskCompletionDTO[]
+    summary: {
+        totalCompleted: int
+        totalXpEarned:  int
     }
 }
 ```
 
 ---
 
-### MICROSERVICIO 3: GAMIFICATION SERVICE (FastAPI + MongoDB + Beanie/Motor)
+---
 
-**Responsabilidades:** XP, niveles, rachas, logros, historial de experiencia, reportes semanales, tendencias.
+# MICROSERVICIO 3: GAMIFICATION SERVICE
 
-**Colecciones MongoDB:**
-
-```python
-# profile_progress
-{
-    "_id": ObjectId,
-    "user_id": "uuid-string",          # referencia al Identity Service
-    "xp_total": 1250,
-    "current_level": 5,
-    "created_at": datetime,
-    "updated_at": datetime
-}
-
-# streaks
-{
-    "_id": ObjectId,
-    "user_id": "uuid-string",
-    "consecutive_days": 7,
-    "last_day": "2025-01-15",           # último día que completó todo
-    "max_streak": 15,                    # racha máxima histórica
-    "updated_at": datetime
-}
-
-# xp_history
-{
-    "_id": ObjectId,
-    "user_id": "uuid-string",
-    "xp_awarded": 35,
-    "source": "task_completion",         # task_completion, achievement, challenge_win
-    "source_id": "task-1",
-    "difficulty": "easy",
-    "streak_bonus": 5,
-    "created_at": datetime
-}
-
-# achievements (catálogo)
-{
-    "_id": ObjectId,
-    "code": "STREAK_7",
-    "name": "Racha de 7 días",
-    "description": "Completa todas tus tareas por 7 días consecutivos",
-    "threshold_value": 7,
-    "condition_type": "streak",          # streak, tasks_completed, level
-    "xp_reward": 100
-}
-
-# user_achievements
-{
-    "_id": ObjectId,
-    "user_id": "uuid-string",
-    "achievement_id": ObjectId,
-    "achievement_code": "STREAK_7",
-    "rewarded_at": datetime
-}
-
-# weekly_reports
-{
-    "_id": ObjectId,
-    "user_id": "uuid-string",
-    "start_week": "2025-01-13",
-    "end_week": "2025-01-19",
-    "completed_tasks": 35,
-    "total_tasks": 42,
-    "completion_percentage": 83.3,
-    "xp_earned": 450,
-    "level_reached": 5,
-    "trend": "increasing",              # increasing, stable, decreasing
-    "created_at": datetime
-}
-```
-
-#### Endpoints:
+**Nombre en Eureka:** `gamification-service`
+**Puerto:** `8000`
+**Tech:** Python FastAPI + Redis + MongoDB + Beanie/Motor
 
 ---
 
-**1. POST /gamification/task-completed**
+## Modelo de Datos
 
-Endpoint principal que llama el Goal Service cuando se completa una tarea. Ejecuta toda la lógica de gamificación.
+### Redis (datos en tiempo real)
 
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
+```
+KEY: user:{userId}:profile
+TYPE: Hash
+FIELDS:
+  xp_total:      int
+  current_level: int
+  updated_at:    string (ISO 8601)
 
-Request Body:
+KEY: user:{userId}:streak
+TYPE: Hash
+FIELDS:
+  consecutive_days: int
+  last_day:         string (ISO date)
+  max_streak:       int
+
+KEY: leaderboard:xp
+TYPE: Sorted Set
+MEMBERS: userId (string UUID)
+SCORE: xp_total (int)
+
+KEY: user:{userId}:tasks_completed
+TYPE: String (int counter)
+```
+
+### MongoDB (datos históricos)
+
+```
+Collection: xp_history
 {
-    "user_id": "uuid-string",
-    "task_id": 1,
-    "difficulty": "easy",               // "easy" | "middle" | "high"
-    "frequency": 1,                      // frecuencia de la tarea
-    "all_daily_tasks_completed": true    // si el Goal Service verificó que se completaron todas las diarias
+    _id:          ObjectId
+    user_id:      string (UUID)
+    xp_awarded:   int
+    source:       string (enum: task_completion, achievement, challenge_win)
+    source_id:    string
+    difficulty:   string | null
+    streak_bonus: int
+    created_at:   datetime
 }
 
-Lógica interna:
-1. Calcular XP base según dificultad:
-   - easy = 10, middle = 25, high = 50
-2. Obtener racha actual del usuario
-3. Si all_daily_tasks_completed == true:
-   - Si lastDay == ayer → consecutiveDays += 1
-   - Si lastDay == hoy → no cambiar
-   - Si lastDay < ayer → consecutiveDays = 1
-4. Calcular bonus de racha: streak_bonus = consecutiveDays * 2
-5. xp_total = xp_base + streak_bonus
-6. Actualizar profile_progress.xp_total
-7. Verificar si sube de nivel (fórmula: nivel = floor(xp_total / 100) + 1)
-8. Evaluar logros no desbloqueados
-9. Registrar en xp_history
-10. Retornar resultado
-
-Response 200:
+Collection: achievements
 {
-    "xp_awarded": 35,
-    "xp_breakdown": {
-        "base": 10,
-        "streak_bonus": 14,
-        "achievement_bonus": 100
-    },
-    "total_xp": 1250,
-    "current_level": 5,
-    "previous_level": 4,
-    "leveled_up": true,
-    "streak": {
-        "consecutive_days": 7,
-        "increased": true,
-        "max_streak": 15
-    },
-    "new_achievements": [
-        {
-            "id": "ObjectId-string",
-            "code": "STREAK_7",
-            "name": "Racha de 7 días",
-            "description": "Completa todas tus tareas por 7 días consecutivos",
-            "xp_reward": 100
-        }
-    ]
+    _id:             ObjectId
+    code:            string (unique)
+    name:            string
+    description:     string
+    condition_type:  string (enum: streak, tasks_completed, level)
+    threshold_value: int
+    xp_reward:       int
+}
+
+Collection: user_achievements
+{
+    _id:              ObjectId
+    user_id:          string (UUID)
+    achievement_id:   ObjectId (ref: achievements)
+    achievement_code: string
+    rewarded_at:      datetime
+}
+
+Collection: weekly_reports
+{
+    _id:                   ObjectId
+    user_id:               string (UUID)
+    start_week:            string (ISO date)
+    end_week:              string (ISO date)
+    completed_tasks:       int
+    total_tasks:           int
+    completion_percentage: float
+    xp_earned:             int
+    level_reached:         int
+    trend:                 string (enum: increasing, stable, decreasing)
+    created_at:            datetime
 }
 ```
 
 ---
 
-**2. POST /gamification/challenge-completed**
+## DTOs
 
-Endpoint que llama el Challenge Service cuando se determina un ganador.
-
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
-
-Request Body:
-{
-    "user_id": "uuid-string",
-    "challenge_id": 1,
-    "result": "win",                // "win" | "lose" | "draw"
-    "xp_reward": 200
-}
-
-Response 200:
-{
-    "xp_awarded": 200,
-    "total_xp": 1450,
-    "current_level": 6,
-    "leveled_up": true,
-    "new_achievements": []
-}
 ```
-
----
-
-**3. GET /gamification/profile/{user_id}**
-
-Obtener perfil de progreso completo del usuario.
-
-```json
-Headers: Authorization: Bearer <token>
-
-Path Params:
-- user_id: string (UUID)
-
-Response 200:
-{
-    "user_id": "uuid-string",
-    "xp_total": 1250,
-    "current_level": 5,
-    "xp_to_next_level": 50,             // cuánto falta para el próximo nivel
-    "xp_progress_percentage": 50.0,      // porcentaje dentro del nivel actual
-    "streak": {
-        "consecutive_days": 7,
-        "max_streak": 15,
-        "last_day": "2025-01-15"
-    },
-    "achievements_count": 12,
-    "total_achievements": 30             // total de logros disponibles
+CreateProfileDTO {
+    user_id: string (UUID, requerido)
 }
 
-Response 404:
-{
-    "error": "PROFILE_NOT_FOUND",
-    "message": "No se encontró perfil de gamificación para este usuario"
-}
-```
-
----
-
-**4. POST /gamification/profile**
-
-Crear perfil de gamificación cuando se registra un usuario nuevo (llamado por Identity Service o Gateway).
-
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
-
-Request Body:
-{
-    "user_id": "uuid-string"
+ProfileResponseDTO {
+    user_id:                string (UUID)
+    xp_total:               int
+    current_level:          int
+    xp_to_next_level:       int
+    xp_progress_percentage: float
+    streak: {
+        consecutive_days: int
+        max_streak:       int
+        last_day:         string (ISO date)
+    }
+    achievements_count:  int
+    total_achievements:  int
 }
 
-Response 201:
-{
-    "user_id": "uuid-string",
-    "xp_total": 0,
-    "current_level": 1,
-    "streak": {
-        "consecutive_days": 0,
-        "max_streak": 0
+TaskCompletedEventDTO {
+    user_id:                  string (UUID, requerido)
+    task_id:                  int (requerido)
+    difficulty:               string (requerido, enum: easy, middle, high)
+    frequency:                int (requerido)
+    all_daily_tasks_completed: boolean (requerido)
+}
+
+GamificationResultDTO {
+    xp_awarded:   int
+    xp_breakdown: {
+        base:              int
+        streak_bonus:      int
+        achievement_bonus: int
+    }
+    total_xp:       int
+    current_level:  int
+    previous_level: int
+    leveled_up:     boolean
+    streak: {
+        consecutive_days: int
+        increased:        boolean
+        max_streak:       int
+    }
+    new_achievements: AchievementDTO[]
+}
+
+ChallengeCompletedEventDTO {
+    user_id:      string (UUID, requerido)
+    challenge_id: string (requerido)
+    result:       string (requerido, enum: win, lose, draw)
+    xp_reward:    int (requerido)
+}
+
+ChallengeXpResultDTO {
+    xp_awarded:    int
+    total_xp:      int
+    current_level: int
+    leveled_up:    boolean
+    new_achievements: AchievementDTO[]
+}
+
+AchievementDTO {
+    id:          string (ObjectId)
+    code:        string
+    name:        string
+    description: string
+    xp_reward:   int
+}
+
+UserAchievementDTO {
+    id:          string (ObjectId)
+    code:        string
+    name:        string
+    description: string
+    xp_reward:   int
+    rewarded_at: string (ISO 8601)
+}
+
+LockedAchievementDTO {
+    id:          string (ObjectId)
+    code:        string
+    name:        string
+    description: string
+    xp_reward:   int
+    progress:    int
+    threshold:   int
+}
+
+CreateAchievementDTO {
+    code:            string (requerido, unique)
+    name:            string (requerido)
+    description:     string (requerido)
+    condition_type:  string (requerido, enum: streak, tasks_completed, level)
+    threshold_value: int    (requerido, min: 1)
+    xp_reward:       int    (requerido, min: 1)
+}
+
+StreakResponseDTO {
+    user_id:          string (UUID)
+    consecutive_days: int
+    max_streak:       int
+    last_day:         string (ISO date)
+    streak_active:    boolean
+}
+
+XpHistoryEntryDTO {
+    id:           string (ObjectId)
+    xp_awarded:   int
+    source:       string
+    source_id:    string
+    difficulty:   string | null
+    streak_bonus: int
+    created_at:   string (ISO 8601)
+}
+
+LeaderboardEntryDTO {
+    rank:          int
+    user_id:       string (UUID)
+    xp_total:      int
+    current_level: int
+}
+
+WeeklyReportRequestDTO {
+    user_id:         string (UUID, requerido)
+    start_week:      string (ISO date, requerido)
+    end_week:        string (ISO date, requerido)
+    completed_tasks: int (requerido)
+    total_tasks:     int (requerido)
+}
+
+WeeklyReportDTO {
+    id:                    string (ObjectId)
+    user_id:               string (UUID)
+    start_week:            string (ISO date)
+    end_week:              string (ISO date)
+    completed_tasks:       int
+    total_tasks:           int
+    completion_percentage: float
+    xp_earned:             int
+    level_reached:         int
+    trend:                 string (enum: increasing, stable, decreasing)
+}
+
+TrendResponseDTO {
+    user_id:       string (UUID)
+    current_trend: string (enum: increasing, stable, decreasing)
+    trend_data: [{
+        week:                  string (ISO date)
+        completion_percentage: float
+        xp_earned:             int
+    }]
+    analysis: {
+        avg_completion: float
+        best_week:      string (ISO date)
+        worst_week:     string (ISO date)
     }
 }
+
+CheckResetRequestDTO {
+    user_ids: string[] (UUID[])
+}
+
+CheckResetResponseDTO {
+    reset_count: int
+    reset_users: string[] (UUID[])
+}
 ```
 
 ---
 
-**5. GET /gamification/achievements/{user_id}**
+## Endpoints
 
-Obtener logros del usuario.
+### Perfil de Progreso
 
-```json
-Headers: Authorization: Bearer <token>
+---
+
+**GS-01 | POST /gamification/profile**
+Crear perfil de gamificación para un nuevo usuario.
+
+```
+Auth: X-Internal-Service-Key
+
+Request Body: CreateProfileDTO
+{
+    user_id: string (UUID)
+}
+
+Lógica:
+  1. Crear hash en Redis: user:{userId}:profile → { xp_total: 0, current_level: 1 }
+  2. Crear hash en Redis: user:{userId}:streak → { consecutive_days: 0, last_day: "", max_streak: 0 }
+  3. Inicializar counter: user:{userId}:tasks_completed → 0
+  4. Agregar al sorted set: leaderboard:xp → userId con score 0
+
+Response 201: ProfileResponseDTO
+
+Errores:
+  409 - PROFILE_EXISTS
+```
+
+---
+
+**GS-02 | GET /gamification/profile/{userId}**
+Obtener perfil de progreso completo.
+
+```
+Auth: Bearer Token
 
 Path Params:
-- user_id: string (UUID)
+  userId: string (UUID)
+
+Lógica:
+  1. Leer de Redis: user:{userId}:profile + user:{userId}:streak
+  2. Calcular xp_to_next_level y xp_progress_percentage
+  3. Contar achievements de MongoDB
+
+Response 200: ProfileResponseDTO
+
+Errores:
+  404 - PROFILE_NOT_FOUND
+```
+
+---
+
+### Eventos (endpoints internos)
+
+---
+
+**GS-03 | POST /gamification/task-completed**
+Procesar tarea completada. Calcula XP, actualiza racha, evalúa logros.
+
+```
+Auth: X-Internal-Service-Key
+
+Request Body: TaskCompletedEventDTO
+{
+    user_id:                   string (UUID)
+    task_id:                   int
+    difficulty:                string (enum: easy, middle, high)
+    frequency:                 int
+    all_daily_tasks_completed: boolean
+}
+
+Lógica:
+  1. XP base según dificultad: easy=10, middle=25, high=50
+  2. Leer racha de Redis: user:{userId}:streak
+  3. Si all_daily_tasks_completed == true:
+     - Si last_day == ayer → consecutive_days += 1
+     - Si last_day == hoy → sin cambio
+     - Si last_day < ayer → consecutive_days = 1
+     - Actualizar last_day = hoy
+  4. streak_bonus = consecutive_days * 2
+  5. Incrementar counter: user:{userId}:tasks_completed
+  6. Evaluar logros no desbloqueados en MongoDB:
+     - condition_type "streak" → comparar consecutive_days >= threshold
+     - condition_type "tasks_completed" → comparar counter >= threshold
+     - condition_type "level" → comparar current_level >= threshold
+  7. achievement_bonus = suma de xp_reward de nuevos logros
+  8. xp_awarded = base + streak_bonus + achievement_bonus
+  9. Actualizar Redis: xp_total += xp_awarded
+  10. Calcular nivel: floor(xp_total / 100) + 1
+  11. Actualizar Redis: current_level, leaderboard:xp
+  12. Guardar en MongoDB: xp_history
+  13. Guardar en MongoDB: user_achievements (si hay nuevos)
+
+Response 200: GamificationResultDTO
+
+Errores:
+  400 - INVALID_REQUEST
+```
+
+---
+
+**GS-04 | POST /gamification/challenge-completed**
+Procesar desafío completado. Otorga XP al ganador.
+
+```
+Auth: X-Internal-Service-Key
+
+Request Body: ChallengeCompletedEventDTO
+{
+    user_id:      string (UUID)
+    challenge_id: string
+    result:       string (enum: win, lose, draw)
+    xp_reward:    int
+}
+
+Lógica:
+  1. Actualizar Redis: xp_total += xp_reward
+  2. Recalcular nivel
+  3. Actualizar leaderboard
+  4. Guardar en xp_history con source: "challenge_win"
+  5. Evaluar logros
+
+Response 200: ChallengeXpResultDTO
+```
+
+---
+
+### Logros
+
+---
+
+**GS-05 | GET /gamification/achievements/catalog**
+Obtener catálogo completo de logros.
+
+```
+Auth: Bearer Token
+
+Response 200:
+{
+    achievements: AchievementDTO[]
+}
+```
+
+---
+
+**GS-06 | POST /gamification/achievements**
+Crear un nuevo logro en el catálogo. Solo ADMIN.
+
+```
+Auth: Bearer Token (rol: ADMIN)
+
+Request Body: CreateAchievementDTO
+{
+    code:            string
+    name:            string
+    description:     string
+    condition_type:  string (enum: streak, tasks_completed, level)
+    threshold_value: int
+    xp_reward:       int
+}
+
+Response 201: AchievementDTO
+
+Errores:
+  400 - VALIDATION_ERROR
+  403 - FORBIDDEN
+  409 - CODE_EXISTS
+```
+
+---
+
+**GS-07 | GET /gamification/achievements/{userId}**
+Obtener logros desbloqueados y bloqueados del usuario.
+
+```
+Auth: Bearer Token
+
+Path Params:
+  userId: string (UUID)
 
 Query Params:
-- unlocked: boolean (opcional, true=solo desbloqueados, false=solo bloqueados)
+  unlocked: boolean (opcional, filtrar solo desbloqueados o bloqueados)
 
 Response 200:
 {
-    "unlocked": [
-        {
-            "id": "ObjectId-string",
-            "code": "STREAK_7",
-            "name": "Racha de 7 días",
-            "description": "Completa todas tus tareas por 7 días consecutivos",
-            "xp_reward": 100,
-            "rewarded_at": "2025-01-15T18:00:00Z"
-        }
-    ],
-    "locked": [
-        {
-            "id": "ObjectId-string",
-            "code": "STREAK_30",
-            "name": "Racha de 30 días",
-            "description": "Completa todas tus tareas por 30 días consecutivos",
-            "xp_reward": 500,
-            "progress": 7,               // progreso actual hacia el logro
-            "threshold": 30
-        }
-    ]
+    unlocked: UserAchievementDTO[]
+    locked:   LockedAchievementDTO[]
 }
 ```
 
 ---
 
-**6. GET /gamification/xp-history/{user_id}**
+### Historial y Racha
 
+---
+
+**GS-08 | GET /gamification/xp-history/{userId}**
 Historial de experiencia obtenida.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- user_id: string (UUID)
+  userId: string (UUID)
 
 Query Params:
-- from: date (opcional)
-- to: date (opcional)
-- source: string (opcional: "task_completion", "achievement", "challenge_win")
-- page: int (default 1)
-- limit: int (default 20)
+  from:   string  (opcional, ISO date)
+  to:     string  (opcional, ISO date)
+  source: string  (opcional, enum: task_completion, achievement, challenge_win)
+  page:   int     (default: 1)
+  limit:  int     (default: 20)
 
 Response 200:
 {
-    "data": [
-        {
-            "id": "ObjectId-string",
-            "xp_awarded": 35,
-            "source": "task_completion",
-            "source_id": "task-1",
-            "difficulty": "easy",
-            "streak_bonus": 14,
-            "created_at": "2025-01-15T18:00:00Z"
-        }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 20,
-        "total": 200
-    }
+    data: XpHistoryEntryDTO[]
+    pagination: { page: int, limit: int, total: int }
 }
 ```
 
 ---
 
-**7. GET /gamification/streak/{user_id}**
-
+**GS-09 | GET /gamification/streak/{userId}**
 Obtener información de racha actual.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- user_id: string (UUID)
+  userId: string (UUID)
 
-Response 200:
-{
-    "user_id": "uuid-string",
-    "consecutive_days": 7,
-    "max_streak": 15,
-    "last_day": "2025-01-15",
-    "streak_active": true                // si lastDay == hoy o ayer
-}
+Lógica:
+  - Leer de Redis: user:{userId}:streak
+  - streak_active = (last_day == hoy || last_day == ayer)
+
+Response 200: StreakResponseDTO
 ```
 
 ---
 
-**8. POST /gamification/streak/check-reset**
+**GS-10 | POST /gamification/streak/check-reset**
+Reiniciar rachas de usuarios que no completaron tareas. Para CRON job.
 
-Endpoint para un CRON job diario que reinicia rachas de usuarios que no completaron tareas ayer.
+```
+Auth: X-Internal-Service-Key
 
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
-
-Request Body:
+Request Body: CheckResetRequestDTO
 {
-    "user_ids": ["uuid-1", "uuid-2"]     // usuarios que NO completaron tareas ayer
+    user_ids: string[] (UUID[])
 }
 
-Response 200:
-{
-    "reset_count": 2,
-    "reset_users": ["uuid-1", "uuid-2"]
-}
+Lógica:
+  - Para cada userId: consecutive_days = 0 en Redis
+
+Response 200: CheckResetResponseDTO
 ```
 
 ---
 
-**9. GET /gamification/leaderboard**
+### Leaderboard
 
-Ranking de usuarios por XP.
+---
 
-```json
-Headers: Authorization: Bearer <token>
+**GS-11 | GET /gamification/leaderboard**
+Ranking global de usuarios por XP.
+
+```
+Auth: Bearer Token
 
 Query Params:
-- limit: int (default 10, max 50)
+  limit: int (default: 10, max: 50)
+
+Lógica:
+  - Leer de Redis sorted set: leaderboard:xp (ZREVRANGE con scores)
 
 Response 200:
 {
-    "leaderboard": [
-        {
-            "rank": 1,
-            "user_id": "uuid-string",
-            "xp_total": 5000,
-            "current_level": 15,
-            "consecutive_days": 30
-        },
-        {
-            "rank": 2,
-            "user_id": "uuid-string",
-            "xp_total": 4500,
-            "current_level": 13,
-            "consecutive_days": 12
-        }
-    ]
+    leaderboard: LeaderboardEntryDTO[]
 }
 ```
 
 ---
 
-**10. POST /gamification/reports/weekly**
+### Reportes
 
-Generar reporte semanal (llamado por CRON job o manualmente).
+---
 
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
+**GS-12 | POST /gamification/reports/weekly**
+Generar reporte semanal. Para CRON job o llamada manual.
 
-Request Body:
+```
+Auth: X-Internal-Service-Key
+
+Request Body: WeeklyReportRequestDTO
 {
-    "user_id": "uuid-string",
-    "start_week": "2025-01-13",
-    "end_week": "2025-01-19",
-    "completed_tasks": 35,
-    "total_tasks": 42
+    user_id:         string (UUID)
+    start_week:      string (ISO date)
+    end_week:        string (ISO date)
+    completed_tasks: int
+    total_tasks:     int
 }
 
-Lógica interna:
-1. Calcular porcentaje de cumplimiento
-2. Obtener XP ganada en la semana desde xp_history
-3. Obtener nivel alcanzado
-4. Comparar con reporte anterior para calcular tendencia
-5. Guardar reporte
+Lógica:
+  1. completion_percentage = (completed_tasks / total_tasks) * 100
+  2. xp_earned = sumar xp_history del período desde MongoDB
+  3. level_reached = leer de Redis
+  4. Buscar reporte anterior en MongoDB para calcular trend:
+     - Si porcentaje actual > anterior + 5 → "increasing"
+     - Si porcentaje actual < anterior - 5 → "decreasing"
+     - Else → "stable"
+  5. Guardar en MongoDB: weekly_reports
 
-Response 201:
-{
-    "id": "ObjectId-string",
-    "user_id": "uuid-string",
-    "start_week": "2025-01-13",
-    "end_week": "2025-01-19",
-    "completed_tasks": 35,
-    "total_tasks": 42,
-    "completion_percentage": 83.3,
-    "xp_earned": 450,
-    "level_reached": 5,
-    "trend": "increasing"
-}
+Response 201: WeeklyReportDTO
 ```
 
 ---
 
-**11. GET /gamification/reports/weekly/{user_id}**
-
+**GS-13 | GET /gamification/reports/weekly/{userId}**
 Obtener reportes semanales del usuario.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- user_id: string (UUID)
+  userId: string (UUID)
 
 Query Params:
-- last: int (opcional, últimos N reportes, default 4)
+  last: int (opcional, default: 4, últimos N reportes)
 
 Response 200:
 {
-    "reports": [
-        {
-            "id": "ObjectId-string",
-            "start_week": "2025-01-13",
-            "end_week": "2025-01-19",
-            "completed_tasks": 35,
-            "total_tasks": 42,
-            "completion_percentage": 83.3,
-            "xp_earned": 450,
-            "level_reached": 5,
-            "trend": "increasing"
-        },
-        {
-            "id": "ObjectId-string",
-            "start_week": "2025-01-06",
-            "end_week": "2025-01-12",
-            "completed_tasks": 28,
-            "total_tasks": 40,
-            "completion_percentage": 70.0,
-            "xp_earned": 320,
-            "level_reached": 4,
-            "trend": "stable"
-        }
-    ]
+    reports: WeeklyReportDTO[]
 }
 ```
 
 ---
 
-**12. GET /gamification/trends/{user_id}**
-
+**GS-14 | GET /gamification/trends/{userId}**
 Obtener tendencia de productividad.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- user_id: string (UUID)
+  userId: string (UUID)
 
 Query Params:
-- weeks: int (default 4, número de semanas a analizar)
+  weeks: int (default: 4)
 
-Response 200:
+Response 200: TrendResponseDTO
+```
+
+---
+
+---
+
+# MICROSERVICIO 4: CHALLENGE SERVICE
+
+**Nombre en Eureka:** `challenge-service`
+**Puerto:** `3002`
+**Tech:** NestJS + MongoDB + Mongoose
+
+---
+
+## Modelo de Datos (MongoDB)
+
+```javascript
+// Collection: challenges
 {
-    "user_id": "uuid-string",
-    "current_trend": "increasing",
-    "trend_data": [
-        {
-            "week": "2025-01-13",
-            "completion_percentage": 83.3,
-            "xp_earned": 450
-        },
-        {
-            "week": "2025-01-06",
-            "completion_percentage": 70.0,
-            "xp_earned": 320
-        },
-        {
-            "week": "2024-12-30",
-            "completion_percentage": 65.0,
-            "xp_earned": 280
-        },
-        {
-            "week": "2024-12-23",
-            "completion_percentage": 55.0,
-            "xp_earned": 200
-        }
-    ],
-    "analysis": {
-        "avg_completion": 68.3,
-        "best_week": "2025-01-13",
-        "worst_week": "2024-12-23"
+    _id:          ObjectId,
+    challengerId: string (UUID),
+    opponentId:   string (UUID),
+    condition:    string (enum: percent, numTasks, level),
+    state:        string (enum: pending, active, completed, rejected, cancelled),
+    durationDays: int,
+    startDate:    Date | null,
+    endDate:      Date | null,
+    result:       string | null (enum: challenger_wins, opponent_wins, draw),
+    createdAt:    Date,
+    updatedAt:    Date
+}
+
+// Collection: challenge_progress
+{
+    _id:            ObjectId,
+    challengeId:    ObjectId (ref: challenges),
+    userId:         string (UUID),
+    tasksCompleted: int,
+    totalTasks:     int,
+    xpEarned:       int,
+    updatedAt:      Date
+}
+```
+
+---
+
+## DTOs
+
+```
+CreateChallengeDTO {
+    opponentId:   string (UUID, requerido)
+    condition:    string (requerido, enum: percent, numTasks, level)
+    durationDays: int    (requerido, min: 1)
+}
+
+ChallengeResponseDTO {
+    id:             string (ObjectId)
+    challengerId:   string (UUID)
+    challengerName: string
+    opponentId:     string (UUID)
+    opponentName:   string
+    condition:      string (enum: percent, numTasks, level)
+    state:          string (enum: pending, active, completed, rejected, cancelled)
+    durationDays:   int
+    startDate:      string | null (ISO 8601)
+    endDate:        string | null (ISO 8601)
+    daysRemaining:  int | null
+    result:         string | null (enum: challenger_wins, opponent_wins, draw)
+    myRole:         string (enum: challenger, opponent)
+    createdAt:      string (ISO 8601)
+}
+
+ChallengeDetailResponseDTO extends ChallengeResponseDTO {
+    progress: {
+        challenger: ProgressDTO
+        opponent:   ProgressDTO
     }
 }
-```
 
----
+ProgressDTO {
+    userId:               string (UUID)
+    name:                 string
+    tasksCompleted:       int
+    totalTasks:           int
+    completionPercentage: float
+    xpEarned:             int
+}
 
-**13. GET /gamification/achievements/catalog**
+UpdateProgressDTO {
+    user_id:               string (UUID, requerido)
+    tasks_completed_today: int (requerido)
+    total_tasks_today:     int (requerido)
+    xp_earned:             int (requerido)
+}
 
-Obtener catálogo completo de logros disponibles.
+UpdateProgressResponseDTO {
+    updated_challenges: string[] (ObjectId[])
+    completed_challenges: [{
+        id:               string (ObjectId)
+        result:           string (enum: challenger_wins, opponent_wins, draw)
+        xp_reward_winner: int
+        xp_reward_loser:  int
+    }]
+}
 
-```json
-Headers: Authorization: Bearer <token>
-
-Response 200:
-{
-    "achievements": [
-        {
-            "id": "ObjectId-string",
-            "code": "STREAK_7",
-            "name": "Racha de 7 días",
-            "description": "Completa todas tus tareas por 7 días consecutivos",
-            "condition_type": "streak",
-            "threshold_value": 7,
-            "xp_reward": 100
-        },
-        {
-            "id": "ObjectId-string",
-            "code": "TASKS_100",
-            "name": "Centenario",
-            "description": "Completa 100 tareas",
-            "condition_type": "tasks_completed",
-            "threshold_value": 100,
-            "xp_reward": 250
-        }
-    ]
+CheckExpiredResponseDTO {
+    processed: int
+    results: [{
+        challengeId: string (ObjectId)
+        result:      string (enum: challenger_wins, opponent_wins, draw)
+        winnerId:    string (UUID)
+        loserId:     string (UUID)
+    }]
 }
 ```
 
 ---
 
-**14. POST /gamification/achievements (ADMIN)**
-
-Crear un nuevo logro en el catálogo.
-
-```json
-Headers: Authorization: Bearer <token> (rol ADMIN)
-
-Request Body:
-{
-    "code": "STREAK_30",
-    "name": "Racha de 30 días",
-    "description": "Completa todas tus tareas por 30 días consecutivos",
-    "condition_type": "streak",          // "streak" | "tasks_completed" | "level"
-    "threshold_value": 30,
-    "xp_reward": 500
-}
-
-Response 201:
-{
-    "id": "ObjectId-string",
-    "code": "STREAK_30",
-    "name": "Racha de 30 días",
-    "description": "...",
-    "condition_type": "streak",
-    "threshold_value": 30,
-    "xp_reward": 500
-}
-```
+## Endpoints
 
 ---
 
-### MICROSERVICIO 4: CHALLENGE SERVICE (NestJS + PostgreSQL + Prisma)
-
-**Responsabilidades:** CRUD de desafíos, aceptar/rechazar, monitorear progreso, determinar ganador.
-
-**Schema Prisma:**
-
-```prisma
-enum ChallengeState {
-    pending
-    active
-    completed
-    rejected
-    cancelled
-}
-
-enum ChallengeCondition {
-    percent      // mayor porcentaje de cumplimiento
-    numTasks     // mayor cantidad de tareas completadas
-    level        // mayor nivel alcanzado
-}
-
-enum ChallengeResult {
-    challenger_wins
-    opponent_wins
-    draw
-}
-
-model Challenge {
-    id              Int                @id @default(autoincrement())
-    challengerId    String             // UUID del retador
-    opponentId      String             // UUID del rival
-    condition       ChallengeCondition
-    state           ChallengeState     @default(pending)
-    durationDays    Int                // duración en días
-    startDate       DateTime?
-    endDate         DateTime?
-    result          ChallengeResult?
-    createdAt       DateTime           @default(now())
-    updatedAt       DateTime           @updatedAt
-    progress        ChallengeProgress[]
-}
-
-model ChallengeProgress {
-    id              Int       @id @default(autoincrement())
-    challengeId     Int
-    challenge       Challenge @relation(fields: [challengeId], references: [id])
-    userId          String    // UUID
-    tasksCompleted  Int       @default(0)
-    totalTasks      Int       @default(0)
-    xpEarned        Int       @default(0)
-    updatedAt       DateTime  @updatedAt
-}
-```
-
-#### Endpoints:
-
----
-
-**1. POST /challenges**
-
+**CS-01 | POST /challenges**
 Crear un desafío contra otro usuario.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
-Request Body:
+Request Body: CreateChallengeDTO
 {
-    "opponentId": "uuid-string",            // requerido
-    "condition": "percent",                  // requerido: "percent" | "numTasks" | "level"
-    "durationDays": 7                        // requerido, duración en días
+    opponentId:   string (UUID)
+    condition:    string (enum: percent, numTasks, level)
+    durationDays: int
 }
 
-Lógica interna:
-1. Verificar que el opponent existe (llamar GET /users/{opponentId} del Identity Service)
-2. Verificar que no haya un desafío activo entre ambos
-3. Crear desafío en estado "pending"
-4. Retornar
+Lógica:
+  1. Llamar identity-service (Eureka): GET /users/{opponentId} → verificar existe
+  2. Verificar no hay desafío activo o pendiente entre ambos
+  3. Crear desafío con state: "pending"
 
-Response 201:
-{
-    "id": 1,
-    "challengerId": "uuid-string",
-    "opponentId": "uuid-string",
-    "condition": "percent",
-    "state": "pending",
-    "durationDays": 7,
-    "startDate": null,
-    "endDate": null,
-    "createdAt": "2025-01-15T10:30:00Z"
-}
+Response 201: ChallengeResponseDTO
 
-Response 404:
-{
-    "error": "OPPONENT_NOT_FOUND",
-    "message": "El usuario rival no existe"
-}
-
-Response 409:
-{
-    "error": "ACTIVE_CHALLENGE_EXISTS",
-    "message": "Ya existe un desafío activo entre estos usuarios"
-}
+Errores:
+  400 - VALIDATION_ERROR
+  404 - OPPONENT_NOT_FOUND
+  409 - ACTIVE_CHALLENGE_EXISTS
 ```
 
 ---
 
-**2. GET /challenges**
-
+**CS-02 | GET /challenges**
 Listar desafíos del usuario autenticado.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Query Params:
-- state: string (opcional: "pending", "active", "completed", "rejected")
-- role: string (opcional: "challenger", "opponent", "all")
-- page: int (default 1)
-- limit: int (default 10)
+  state: string  (opcional, enum: pending, active, completed, rejected, cancelled)
+  role:  string  (opcional, enum: challenger, opponent, all)
+  page:  int     (default: 1)
+  limit: int     (default: 10)
 
 Response 200:
 {
-    "data": [
-        {
-            "id": 1,
-            "challengerId": "uuid-string",
-            "challengerName": "Juan",            // obtenido del Identity Service
-            "opponentId": "uuid-string",
-            "opponentName": "María",
-            "condition": "percent",
-            "state": "active",
-            "durationDays": 7,
-            "startDate": "2025-01-15T00:00:00Z",
-            "endDate": "2025-01-22T00:00:00Z",
-            "myRole": "challenger",
-            "createdAt": "2025-01-15T10:30:00Z"
-        }
-    ],
-    "pagination": {
-        "page": 1,
-        "limit": 10,
-        "total": 3
-    }
+    data: ChallengeResponseDTO[]
+    pagination: { page: int, limit: int, total: int }
 }
+
+Notas:
+  - Para obtener challengerName/opponentName, llamar identity-service: GET /users/{id}
 ```
 
 ---
 
-**3. GET /challenges/:id**
+**CS-03 | GET /challenges/:id**
+Obtener detalle de un desafío con progreso de ambos participantes.
 
-Obtener detalle de un desafío con progreso.
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: string (ObjectId)
 
-Response 200:
-{
-    "id": 1,
-    "challengerId": "uuid-string",
-    "challengerName": "Juan",
-    "opponentId": "uuid-string",
-    "opponentName": "María",
-    "condition": "percent",
-    "state": "active",
-    "durationDays": 7,
-    "startDate": "2025-01-15T00:00:00Z",
-    "endDate": "2025-01-22T00:00:00Z",
-    "daysRemaining": 4,
-    "result": null,
-    "progress": {
-        "challenger": {
-            "userId": "uuid-string",
-            "name": "Juan",
-            "tasksCompleted": 15,
-            "totalTasks": 21,
-            "completionPercentage": 71.4,
-            "xpEarned": 250
-        },
-        "opponent": {
-            "userId": "uuid-string",
-            "name": "María",
-            "tasksCompleted": 18,
-            "totalTasks": 21,
-            "completionPercentage": 85.7,
-            "xpEarned": 310
-        }
-    },
-    "createdAt": "2025-01-15T10:30:00Z"
-}
+Response 200: ChallengeDetailResponseDTO
 
-Response 404:
-{
-    "error": "CHALLENGE_NOT_FOUND",
-    "message": "El desafío no existe"
-}
+Errores:
+  404 - CHALLENGE_NOT_FOUND
+  403 - FORBIDDEN (no es participante)
 ```
 
 ---
 
-**4. PATCH /challenges/:id/accept**
-
+**CS-04 | PATCH /challenges/:id/accept**
 Aceptar un desafío pendiente.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: string (ObjectId)
 
 Lógica:
-1. Verificar que el usuario autenticado es el opponent
-2. Cambiar state → active
-3. Establecer startDate = ahora, endDate = ahora + durationDays
-4. Crear registros ChallengeProgress para ambos usuarios
+  1. Verificar que el usuario autenticado es el opponent
+  2. Verificar state == "pending"
+  3. state → "active"
+  4. startDate = now()
+  5. endDate = now() + durationDays
+  6. Crear ChallengeProgress para challenger y opponent (ambos en 0)
 
-Response 200:
-{
-    "id": 1,
-    "state": "active",
-    "startDate": "2025-01-15T18:00:00Z",
-    "endDate": "2025-01-22T18:00:00Z",
-    "message": "Desafío aceptado exitosamente"
-}
+Response 200: ChallengeResponseDTO (actualizado)
 
-Response 403:
-{
-    "error": "NOT_OPPONENT",
-    "message": "Solo el rival puede aceptar el desafío"
-}
-
-Response 400:
-{
-    "error": "INVALID_STATE",
-    "message": "El desafío no está en estado pendiente"
-}
+Errores:
+  403 - NOT_OPPONENT
+  400 - INVALID_STATE (no está en pending)
 ```
 
 ---
 
-**5. PATCH /challenges/:id/reject**
-
+**CS-05 | PATCH /challenges/:id/reject**
 Rechazar un desafío pendiente.
 
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: string (ObjectId)
+
+Lógica:
+  1. Verificar que el usuario es el opponent
+  2. state → "rejected"
 
 Response 200:
 {
-    "id": 1,
-    "state": "rejected",
-    "message": "Desafío rechazado"
+    id:      string
+    state:   string ("rejected")
+    message: string
 }
+
+Errores:
+  403 - NOT_OPPONENT
+  400 - INVALID_STATE
 ```
 
 ---
 
-**6. PATCH /challenges/:id/cancel**
+**CS-06 | PATCH /challenges/:id/cancel**
+Cancelar un desafío. Solo el challenger y solo si está en pending.
 
-Cancelar un desafío (solo el challenger si aún está pending).
-
-```json
-Headers: Authorization: Bearer <token>
+```
+Auth: Bearer Token
 
 Path Params:
-- id: int
+  id: string (ObjectId)
+
+Lógica:
+  1. Verificar que el usuario es el challenger
+  2. Verificar state == "pending"
+  3. state → "cancelled"
 
 Response 200:
 {
-    "id": 1,
-    "state": "cancelled",
-    "message": "Desafío cancelado"
+    id:      string
+    state:   string ("cancelled")
+    message: string
 }
+
+Errores:
+  403 - NOT_CHALLENGER
+  400 - INVALID_STATE
 ```
 
 ---
 
-**7. POST /challenges/update-progress**
+**CS-07 | POST /challenges/update-progress**
+Actualizar progreso de desafíos activos. Uso interno (llamado por task-service).
 
-Endpoint interno llamado cuando se completa una tarea para actualizar el progreso de los desafíos activos del usuario.
+```
+Auth: X-Internal-Service-Key
 
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
-
-Request Body:
+Request Body: UpdateProgressDTO
 {
-    "user_id": "uuid-string",
-    "tasks_completed_today": 5,
-    "total_tasks_today": 8,
-    "xp_earned": 35
+    user_id:               string (UUID)
+    tasks_completed_today: int
+    total_tasks_today:     int
+    xp_earned:             int
 }
 
 Lógica:
-1. Buscar todos los desafíos activos donde este usuario participe
-2. Actualizar tasksCompleted y totalTasks en ChallengeProgress
-3. Si algún desafío alcanzó endDate → calcular ganador
+  1. Buscar todos los challenges activos donde participa user_id
+  2. Para cada uno, actualizar ChallengeProgress:
+     tasksCompleted += tasks_completed_today
+     totalTasks += total_tasks_today
+     xpEarned += xp_earned
+  3. Si algún challenge alcanzó endDate:
+     - Calcular ganador según condition
+     - Llamar gamification-service: POST /gamification/challenge-completed
+     - state → "completed"
 
-Response 200:
-{
-    "updated_challenges": [1, 3],
-    "completed_challenges": [
-        {
-            "id": 3,
-            "result": "challenger_wins",
-            "xp_reward_winner": 200,
-            "xp_reward_loser": 50
-        }
-    ]
-}
+Response 200: UpdateProgressResponseDTO
 ```
 
 ---
 
-**8. POST /challenges/check-expired**
+**CS-08 | POST /challenges/check-expired**
+Verificar y cerrar desafíos expirados. Para CRON job.
 
-CRON endpoint para verificar desafíos que han expirado y calcular ganador.
-
-```json
-Headers: X-Internal-Service-Key: <shared-secret>
+```
+Auth: X-Internal-Service-Key
 
 Request Body: (vacío)
 
 Lógica:
-1. Buscar todos los desafíos con state=active y endDate <= now()
-2. Para cada uno, calcular ganador según condition
-3. Llamar al Gamification Service para otorgar XP
-4. Actualizar state → completed
+  1. Buscar challenges: state == "active" AND endDate <= now()
+  2. Para cada uno:
+     - Comparar progress según condition:
+       * percent: mayor completionPercentage gana
+       * numTasks: mayor tasksCompleted gana
+       * level: obtener nivel de gamification-service
+     - Calcular xp_reward_winner y xp_reward_loser
+     - Llamar gamification-service: POST /gamification/challenge-completed (para ambos)
+     - state → "completed"
 
-Response 200:
-{
-    "processed": 2,
-    "results": [
-        {
-            "challengeId": 1,
-            "result": "opponent_wins",
-            "winnerId": "uuid-string",
-            "loserId": "uuid-string"
-        }
-    ]
-}
+Response 200: CheckExpiredResponseDTO
 ```
 
 ---
 
-### MICROSERVICIO 5: API GATEWAY (Spring Cloud Gateway)
+## Comunicación entre Servicios (vía Eureka)
 
-**Responsabilidades:** Enrutamiento, validación JWT centralizada, rate limiting.
-
-**Tabla de enrutamiento:**
-
-| Ruta Externa | Microservicio Destino | Autenticación |
-|---|---|---|
-| `/api/auth/**` | Identity Service | NO (público) |
-| `/api/users/**` | Identity Service | SÍ |
-| `/api/audit/**` | Identity Service | SÍ (ADMIN) |
-| `/api/goals/**` | Goal & Task Service | SÍ |
-| `/api/tasks/**` | Goal & Task Service | SÍ |
-| `/api/challenges/**` | Challenge Service | SÍ |
-| `/api/gamification/**` | Gamification Service | SÍ |
-
----
-
-### DOCKER COMPOSE COMPLETO
-
-```yaml
-version: '3.8'
-
-services:
-  # ============ BASES DE DATOS ============
-  mysql-identity:
-    image: mysql:8.0
-    container_name: mysql-identity
-    environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: identity_db
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - app-network
-
-  postgres-tasks:
-    image: postgres:15
-    container_name: postgres-tasks
-    environment:
-      POSTGRES_DB: tasks_db
-      POSTGRES_USER: tasks_user
-      POSTGRES_PASSWORD: tasks123
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_tasks_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-  postgres-challenges:
-    image: postgres:15
-    container_name: postgres-challenges
-    environment:
-      POSTGRES_DB: challenges_db
-      POSTGRES_USER: challenges_user
-      POSTGRES_PASSWORD: challenges123
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_challenges_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-  mongo-gamification:
-    image: mongo:7
-    container_name: mongo-gamification
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - app-network
-
-  # ============ MICROSERVICIOS ============
-  api-gateway:
-    build: ./api-gateway
-    container_name: api-gateway
-    ports:
-      - "8080:8080"
-    environment:
-      IDENTITY_SERVICE_URL: http://identity-service:8081
-      TASK_SERVICE_URL: http://task-service:3001
-      GAMIFICATION_SERVICE_URL: http://gamification-service:8000
-      CHALLENGE_SERVICE_URL: http://challenge-service:3002
-      JWT_SECRET: your-shared-jwt-secret-key
-    depends_on:
-      - identity-service
-      - task-service
-      - gamification-service
-      - challenge-service
-    networks:
-      - app-network
-
-  identity-service:
-    build: ./identity-service
-    container_name: identity-service
-    ports:
-      - "8081:8081"
-    environment:
-      DB_HOST: mysql-identity
-      DB_PORT: 3306
-      DB_NAME: identity_db
-      DB_USER: root
-      DB_PASSWORD: root123
-      JWT_SECRET: your-shared-jwt-secret-key
-      JWT_EXPIRATION: 3600
-      GAMIFICATION_SERVICE_URL: http://gamification-service:8000
-    depends_on:
-      - mysql-identity
-    networks:
-      - app-network
-
-  task-service:
-    build: ./task-service
-    container_name: task-service
-    ports:
-      - "3001:3001"
-    environment:
-      DATABASE_URL: postgresql://tasks_user:tasks123@postgres-tasks:5432/tasks_db
-      GAMIFICATION_SERVICE_URL: http://gamification-service:8000
-      CHALLENGE_SERVICE_URL: http://challenge-service:3002
-      IDENTITY_SERVICE_URL: http://identity-service:8081
-      INTERNAL_SERVICE_KEY: internal-secret-key
-    depends_on:
-      - postgres-tasks
-    networks:
-      - app-network
-
-  gamification-service:
-    build: ./gamification-service
-    container_name: gamification-service
-    ports:
-      - "8000:8000"
-    environment:
-      MONGO_URL: mongodb://mongo-gamification:27017/gamification_db
-      INTERNAL_SERVICE_KEY: internal-secret-key
-    depends_on:
-      - mongo-gamification
-    networks:
-      - app-network
-
-  challenge-service:
-    build: ./challenge-service
-    container_name: challenge-service
-    ports:
-      - "3002:3002"
-    environment:
-      DATABASE_URL: postgresql://challenges_user:challenges123@postgres-challenges:5432/challenges_db
-      GAMIFICATION_SERVICE_URL: http://gamification-service:8000
-      IDENTITY_SERVICE_URL: http://identity-service:8081
-      INTERNAL_SERVICE_KEY: internal-secret-key
-    depends_on:
-      - postgres-challenges
-    networks:
-      - app-network
-
-volumes:
-  mysql_data:
-  postgres_tasks_data:
-  postgres_challenges_data:
-  mongo_data:
-
-networks:
-  app-network:
-    driver: bridge
 ```
+┌─────────────────────────────────────────────────┐
+│              EUREKA SERVER (:8761)                │
+│   Registrados:                                   │
+│     - identity-service                           │
+│     - task-service                               │
+│     - gamification-service                       │
+│     - challenge-service                          │
+└─────────────────────────────────────────────────┘
 
----
+FLUJO 1 — Registro de usuario:
+  identity-service → gamification-service
+    POST /gamification/profile
 
-### Reparto por desarrollador:
+FLUJO 2 — Completar tarea:
+  task-service → gamification-service
+    POST /gamification/task-completed
+  task-service → challenge-service
+    POST /challenges/update-progress
 
-| Desarrollador | Servicios | Endpoints |
-|---|---|---|
-| **Dev A (Java)** | API Gateway + Identity Service | 10 endpoints + routing |
-| **Dev B (NestJS)** | Goal/Task Service + Challenge Service | 14 + 8 = 22 endpoints |
-| **Dev C (Python)** | Gamification Service | 14 endpoints |
+FLUJO 3 — Crear desafío:
+  challenge-service → identity-service
+    GET /users/{opponentId}
 
+FLUJO 4 — Desafío expira:
+  challenge-service → gamification-service
+    POST /gamification/challenge-completed
+
+FLUJO 5 — Validar token:
+  task-service → identity-service
+    POST /auth/validate-token
+  challenge-service → identity-service
+    POST /auth/validate-token
+
+FLUJO 6 — Obtener nombres para desafíos:
+  challenge-service → identity-service
+    GET /users/{userId}
+```
