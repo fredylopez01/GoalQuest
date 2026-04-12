@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { IdentityClient } from './identitiy.client';
+import { GamificationClient } from './gamification.client';
+import { ChallengeClient } from './challange.client';
 
 @Module({
   imports: [
@@ -10,7 +12,7 @@ import { IdentityClient } from './identitiy.client';
     }),
     ConfigModule,
   ],
-  providers: [IdentityClient],
-  exports: [IdentityClient],
+  providers: [IdentityClient, GamificationClient, ChallengeClient],
+  exports: [IdentityClient, GamificationClient, ChallengeClient],
 })
 export class ClientsModule {}
