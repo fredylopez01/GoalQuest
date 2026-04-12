@@ -1,0 +1,54 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: identity-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:goalquest_identity}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  secret: ${JWT_SECRET:goalquest-super-secret-key-change-in-production-must-be-at-least-256-bits}
+  expiration: ${JWT_EXPIRATION:86400}
+
+internal:
+  service-key: ${INTERNAL_SERVICE_KEY:goalquest-internal-secret}
+
+admin:
+  email: ${ADMIN_EMAIL:admin@goalquest.com}
+  password: ${ADMIN_PASSWORD:Admin1234!}
+  name: ${ADMIN_NAME:Admin GoalQuest}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.goalquest: DEBUG
+    org.springframework.security: WARN
