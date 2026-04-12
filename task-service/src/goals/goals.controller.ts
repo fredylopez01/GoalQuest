@@ -120,4 +120,27 @@ export class GoalsController {
   ): Promise<MessageResponseDto> {
     return this.goalsService.removeByUser(id, userId, ipAddress);
   }
+
+  @Patch('reopen/:id')
+  @ApiOperation({ summary: 'Reabrir una meta en estado completed o expired' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la meta' })
+  @ApiResponse({
+    status: 200,
+    description: 'Meta reabierta exitosamente',
+    type: GoalResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'La meta ya está en estado pendiente',
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta meta' })
+  @ApiResponse({ status: 404, description: 'Meta no encontrada' })
+  async reopenGoal(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @ClientIp() ipAddress: string | null,
+  ): Promise<GoalResponseDto> {
+    return this.goalsService.reopenGoal(id, userId, ipAddress);
+  }
 }

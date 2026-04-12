@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -131,5 +132,36 @@ export class GoalsService {
     return {
       message: `Meta "${goal.name}" y sus ${taskCount} tarea(s) asociada(s) eliminadas exitosamente`,
     };
+  }
+
+  async reopenGoal(
+    id: number,
+    userId: string,
+    ipAddress: string | null,
+  ): Promise<GoalWithTasks> {
+    const goal = await this.findOneByUser(id, userId);
+
+    if (goal.state === 'pending') {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'INVALID_STATE',
+        message: 'La meta ya se encuentra en estado pendiente',
+      });
+    }
+
+    const reopenedGoal = await this.prisma.goal.update({
+      where: { id },
+      data: { state: 'pending' },
+      include: { tasks: true },
+    });
+
+    this.sendAuditLog(
+      userId,
+      AuditAction.REOPEN_GOAL,
+      `Meta "${goal.name}" (ID: ${goal.id}) reabierta desde estado "${goal.state}"`,
+      ipAddress,
+    );
+
+    return reopenedGoal;
   }
 }
