@@ -13,6 +13,7 @@ import { TaskResponseDto } from './dto/task-response.dto';
 import { FilterTasksDto } from './dto/filter-task.dto';
 import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 
 type TaskWithGoal = Prisma.TaskGetPayload<{
   include: {
@@ -189,5 +190,39 @@ export class TasksService {
           completedAt: completion.completedAt.toISOString(),
         })),
     };
+  }
+
+  async editTask(
+    id: number,
+    userId: string,
+    dto: UpdateTaskDto,
+    ipAddress: string | null,
+  ): Promise<TaskResponseDto> {
+    await this.findOneByUser(id, userId);
+
+    const updatedTask = await this.prisma.task.update({
+      where: { id },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.difficultyLevel && { difficultyLevel: dto.difficultyLevel }),
+        ...(dto.limitDate !== undefined && {
+          limitDate: dto.limitDate ? new Date(dto.limitDate) : null,
+        }),
+        ...(dto.frequency !== undefined && { frequency: dto.frequency }),
+      },
+      include: {
+        goal: true,
+        completions: true,
+      },
+    });
+
+    this.sendAuditLog(
+      userId,
+      AuditAction.UPDATE_TASK,
+      `Tarea "${updatedTask.name}" (ID: ${updatedTask.id}) actualizada`,
+      ipAddress,
+    );
+
+    return this.mapToResponse(updatedTask);
   }
 }

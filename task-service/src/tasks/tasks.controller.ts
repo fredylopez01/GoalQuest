@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -26,6 +27,7 @@ import { ClientIp } from 'src/common/decorators/client-ip.decorator';
 import { FilterTasksDto } from './dto/filter-task.dto';
 import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -86,5 +88,26 @@ export class TasksController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<TaskDetailResponseDto> {
     return this.tasksService.findOneByUser(id, userId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Editar una tarea' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la tarea' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tarea editada exitosamente',
+    type: TaskResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Error de validación' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta tarea' })
+  @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
+  async editTask(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTaskDto,
+    @ClientIp() ipAddress: string | null,
+  ): Promise<TaskResponseDto> {
+    return this.tasksService.editTask(id, userId, dto, ipAddress);
   }
 }
