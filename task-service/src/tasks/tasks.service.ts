@@ -22,6 +22,8 @@ import { GamificationResult } from 'src/clients/interfaces/gamification-result.i
 import { getEndOfDay, getStartOfDay } from 'src/common/utils/date.utils';
 import { CompleteTaskResponseDto } from './dto/complete-task-response.dto';
 import { DailySummaryDto } from './dto/daily-summary.dto';
+import { FilterCompletionsDto } from './dto/filter-completions.dto';
+import { CompletionHistoryDto } from './dto/completion-history.dto';
 
 type TaskWithGoal = Prisma.TaskGetPayload<{
   include: {
@@ -556,6 +558,47 @@ export class TasksService {
       pendingTasks,
       completionPercentage,
       tasks: taskSummaries,
+    };
+  }
+
+  async getCompletionHistory(
+    userId: string,
+    filters: FilterCompletionsDto,
+  ): Promise<CompletionHistoryDto> {
+    const { from, to, taskId } = filters;
+
+    const fromDate = getStartOfDay(new Date(from));
+    const toDate = getEndOfDay(new Date(to));
+
+    const where: Prisma.TaskCompletionWhereInput = {
+      task: { goal: { userId } },
+      completedAt: { gte: fromDate, lte: toDate },
+      ...(taskId && { taskId }),
+    };
+
+    const completions = await this.prisma.taskCompletion.findMany({
+      where,
+      include: { task: true },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    const data = completions.map((completion) => ({
+      id: completion.id,
+      taskId: completion.taskId,
+      taskName: completion.task.name,
+      xpAwarded: completion.xpAwarded,
+      completedAt: completion.completedAt.toISOString(),
+    }));
+
+    const totalCompleted = data.length;
+    const totalXpEarned = data.reduce((sum, c) => sum + c.xpAwarded, 0);
+
+    return {
+      data,
+      summary: {
+        totalCompleted,
+        totalXpEarned,
+      },
     };
   }
 }

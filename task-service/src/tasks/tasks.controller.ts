@@ -32,6 +32,8 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 import { MessageResponseDto } from 'src/common/dto/message-response.dto';
 import { CompleteTaskResponseDto } from './dto/complete-task-response.dto';
 import { DailySummaryDto } from './dto/daily-summary.dto';
+import { CompletionHistoryDto } from './dto/completion-history.dto';
+import { FilterCompletionsDto } from './dto/filter-completions.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -88,6 +90,24 @@ export class TasksController {
     return this.tasksService.getDailySummary(userId);
   }
 
+  @Get('completions')
+  @ApiOperation({
+    summary: 'Historial de completaciones para un rango de fechas',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Historial de completaciones con resumen',
+    type: CompletionHistoryDto,
+  })
+  @ApiResponse({ status: 400, description: 'Error de validación' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async getCompletionHistory(
+    @CurrentUser('userId') userId: string,
+    @Query() filters: FilterCompletionsDto,
+  ): Promise<CompletionHistoryDto> {
+    return this.tasksService.getCompletionHistory(userId, filters);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Obtener detalle de una tarea con historial de completaciones',
@@ -106,6 +126,26 @@ export class TasksController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<TaskDetailResponseDto> {
     return this.tasksService.findOneByUser(id, userId);
+  }
+
+  @Patch(':id/complete')
+  @ApiOperation({ summary: 'Marcar una tarea como completada' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la tarea' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tarea completada exitosamente',
+    type: CompleteTaskResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'La tarea ya fue completada' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta tarea' })
+  @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
+  async completeTask(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @ClientIp() ipAddress: string | null,
+  ): Promise<CompleteTaskResponseDto> {
+    return this.tasksService.completeTask(id, userId, ipAddress);
   }
 
   @Patch(':id')
@@ -146,25 +186,5 @@ export class TasksController {
     @ClientIp() ipAddress: string | null,
   ): Promise<MessageResponseDto> {
     return this.tasksService.removeByUser(id, userId, ipAddress);
-  }
-
-  @Patch('complete/:id')
-  @ApiOperation({ summary: 'Marcar una tarea como completada' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID de la tarea' })
-  @ApiResponse({
-    status: 200,
-    description: 'Tarea completada exitosamente',
-    type: CompleteTaskResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'La tarea ya fue completada' })
-  @ApiResponse({ status: 401, description: 'No autorizado' })
-  @ApiResponse({ status: 403, description: 'No tienes acceso a esta tarea' })
-  @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
-  async completeTask(
-    @CurrentUser('userId') userId: string,
-    @Param('id', ParseIntPipe) id: number,
-    @ClientIp() ipAddress: string | null,
-  ): Promise<CompleteTaskResponseDto> {
-    return this.tasksService.completeTask(id, userId, ipAddress);
   }
 }
