@@ -53,6 +53,12 @@ export class IdentityClient {
   }
 
   async createAuditLog(dto: AuditLogRequestDto): Promise<void> {
+    if (dto.user_id === 'dev-user-123') {
+      this.logger.log(
+        `Audit log [${dto.action}] for user ${dto.user_id}: ${dto.description} (IP: ${dto.ip_address})`,
+      );
+      return;
+    }
     try {
       await firstValueFrom(
         this.http.post(`${this.identityUrl}/audit/logs`, dto, {
