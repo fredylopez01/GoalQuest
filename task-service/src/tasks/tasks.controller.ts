@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,6 +20,8 @@ import { TaskResponseDto } from './dto/task-response.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { ClientIp } from 'src/common/decorators/client-ip.decorator';
+import { FilterTasksDto } from './dto/filter-task.dto';
+import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -44,5 +48,19 @@ export class TasksController {
     @ClientIp() ipAddress: string | null,
   ): Promise<TaskResponseDto> {
     return this.tasksService.createTask(userId, dto, ipAddress);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Listar tareas del usuario autenticado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada de tareas',
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async findAll(
+    @CurrentUser('userId') userId: string,
+    @Query() filters: FilterTasksDto,
+  ): Promise<PaginatedResponseDto<TaskResponseDto>> {
+    return this.tasksService.findAllByUser(userId, filters);
   }
 }

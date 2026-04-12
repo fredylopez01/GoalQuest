@@ -6,6 +6,8 @@ import { GoalsService } from 'src/goals/goals.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
+import { FilterTasksDto } from './dto/filter-task.dto';
+import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 
 type TaskWithGoal = Prisma.TaskGetPayload<{
   include: {
@@ -88,5 +90,53 @@ export class TasksService {
     );
 
     return this.mapToResponse(task);
+  }
+
+  async findAllByUser(
+    userId: string,
+    filters: FilterTasksDto,
+  ): Promise<PaginatedResponseDto<TaskResponseDto>> {
+    const { goalId, state, frequency, date, page = 1, limit = 10 } = filters;
+
+    const where: Prisma.TaskWhereInput = {
+      goal: { userId },
+      ...(goalId && { goalId }),
+      ...(state && { state }),
+      ...(frequency !== undefined && { frequency }),
+      ...(date && {
+        AND: [
+          { createdAt: { lte: new Date(`${date}T23:59:59.999Z`) } },
+          {
+            OR: [
+              { limitDate: null },
+              { limitDate: { gte: new Date(`${date}T00:00:00.000Z`) } },
+            ],
+          },
+        ],
+      }),
+    };
+
+    const [tasks, total] = await Promise.all([
+      this.prisma.task.findMany({
+        where,
+        include: {
+          goal: true,
+          completions: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.task.count({ where }),
+    ]);
+
+    return {
+      data: tasks.map((task) => this.mapToResponse(task)),
+      pagination: {
+        page,
+        limit,
+        total,
+      },
+    };
   }
 }
