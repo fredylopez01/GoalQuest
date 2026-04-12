@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -28,6 +29,7 @@ import { FilterTasksDto } from './dto/filter-task.dto';
 import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { MessageResponseDto } from 'src/common/dto/message-response.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -109,5 +111,24 @@ export class TasksController {
     @ClientIp() ipAddress: string | null,
   ): Promise<TaskResponseDto> {
     return this.tasksService.editTask(id, userId, dto, ipAddress);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar una tarea' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la tarea' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tarea eliminada exitosamente',
+    type: MessageResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta tarea' })
+  @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
+  async remove(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @ClientIp() ipAddress: string | null,
+  ): Promise<MessageResponseDto> {
+    return this.tasksService.removeByUser(id, userId, ipAddress);
   }
 }

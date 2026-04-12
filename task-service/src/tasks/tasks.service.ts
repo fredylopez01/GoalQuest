@@ -14,6 +14,7 @@ import { FilterTasksDto } from './dto/filter-task.dto';
 import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { MessageResponseDto } from 'src/common/dto/message-response.dto';
 
 type TaskWithGoal = Prisma.TaskGetPayload<{
   include: {
@@ -224,5 +225,28 @@ export class TasksService {
     );
 
     return this.mapToResponse(updatedTask);
+  }
+
+  async removeByUser(
+    id: number,
+    userId: string,
+    ipAddress: string | null,
+  ): Promise<MessageResponseDto> {
+    const task = await this.findOneByUser(id, userId);
+
+    await this.prisma.task.delete({
+      where: { id },
+    });
+
+    this.sendAuditLog(
+      userId,
+      AuditAction.DELETE_TASK,
+      `Tarea "${task.name}" (ID: ${task.id}) eliminada de meta "${task.goalName}" (ID: ${task.goalId})`,
+      ipAddress,
+    );
+
+    return {
+      message: `Tarea "${task.name}" y sus completaciones eliminadas exitosamente`,
+    };
   }
 }
