@@ -1,0 +1,5 @@
+export enum AuditAction {
+  CREATE_GOAL = 'CREATE_GOAL',
+  UPDATE_GOAL = 'UPDATE_GOAL',
+  DELETE_GOAL = 'DELETE_GOAL',
+}

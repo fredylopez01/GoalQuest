@@ -23,8 +23,8 @@ import { GoalResponseDto } from './dto/goal-response.dto';
 import { CreateGoalDto } from './dto/create-goal.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { MessageResponseDto } from 'src/common/dto/message-response.dto';
 import { ClientIp } from 'src/common/decorators/client-ip.decorator';
+import { MessageResponseDto } from 'src/common/dto/message-response.dto';
 
 @ApiTags('Goals')
 @ApiBearerAuth()
@@ -46,9 +46,9 @@ export class GoalsController {
   async createGoal(
     @CurrentUser('userId') userId: string,
     @Body() dto: CreateGoalDto,
+    @ClientIp() ipAddress: string | null,
   ): Promise<GoalResponseDto> {
-    const goal = await this.goalsService.createGoal(userId, dto);
-    return goal;
+    return this.goalsService.createGoal(userId, dto, ipAddress);
   }
 
   @Get()
@@ -97,9 +97,9 @@ export class GoalsController {
     @CurrentUser('userId') userId: string,
     @Param('id', ParseIntPipe) id: number,
     @Body() dataToUpdate: Partial<CreateGoalDto>,
+    @ClientIp() ipAddress: string | null,
   ): Promise<GoalResponseDto> {
-    await this.goalsService.findOneByUser(id, userId);
-    return this.goalsService.editGoal(id, dataToUpdate);
+    return this.goalsService.editGoal(id, userId, dataToUpdate, ipAddress);
   }
 
   @Delete(':id')
