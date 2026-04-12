@@ -4,6 +4,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Query,
   UseGuards,
@@ -11,6 +13,7 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -22,6 +25,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { ClientIp } from 'src/common/decorators/client-ip.decorator';
 import { FilterTasksDto } from './dto/filter-task.dto';
 import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
+import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -62,5 +66,25 @@ export class TasksController {
     @Query() filters: FilterTasksDto,
   ): Promise<PaginatedResponseDto<TaskResponseDto>> {
     return this.tasksService.findAllByUser(userId, filters);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Obtener detalle de una tarea con historial de completaciones',
+  })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la tarea' })
+  @ApiResponse({
+    status: 200,
+    description: 'Detalle de la tarea con completaciones',
+    type: TaskDetailResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta tarea' })
+  @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
+  async findOne(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<TaskDetailResponseDto> {
+    return this.tasksService.findOneByUser(id, userId);
   }
 }

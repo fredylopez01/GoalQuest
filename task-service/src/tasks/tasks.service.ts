@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IdentityClient } from 'src/clients/identitiy.client';
 import { AuditAction } from 'src/common/enums/audit-action.enum';
@@ -8,6 +12,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { TaskResponseDto } from './dto/task-response.dto';
 import { FilterTasksDto } from './dto/filter-task.dto';
 import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
+import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
 
 type TaskWithGoal = Prisma.TaskGetPayload<{
   include: {
@@ -137,6 +142,52 @@ export class TasksService {
         limit,
         total,
       },
+    };
+  }
+
+  async findOneByUser(
+    id: number,
+    userId: string,
+  ): Promise<TaskDetailResponseDto> {
+    const task = await this.prisma.task.findUnique({
+      where: { id },
+      include: {
+        goal: true,
+        completions: true,
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException({
+        statusCode: 404,
+        error: 'TASK_NOT_FOUND',
+        message: `La tarea con id ${id} no existe`,
+      });
+    }
+
+    if (task.goal.userId !== userId) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        error: 'FORBIDDEN',
+        message: 'No tienes acceso a esta tarea',
+      });
+    }
+
+    return this.mapToDetailResponse(task);
+  }
+
+  private mapToDetailResponse(task: TaskWithGoal): TaskDetailResponseDto {
+    return {
+      ...this.mapToResponse(task),
+      completions: task.completions
+        .sort((a, b) => b.completedAt.getTime() - a.completedAt.getTime())
+        .map((completion) => ({
+          id: completion.id,
+          taskId: completion.taskId,
+          taskName: task.name,
+          xpAwarded: completion.xpAwarded,
+          completedAt: completion.completedAt.toISOString(),
+        })),
     };
   }
 }
