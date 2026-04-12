@@ -30,6 +30,7 @@ import { PaginatedResponseDto } from 'src/common/dto/paginated-response.dto';
 import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MessageResponseDto } from 'src/common/dto/message-response.dto';
+import { CompleteTaskResponseDto } from './dto/complete-task-response.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -130,5 +131,25 @@ export class TasksController {
     @ClientIp() ipAddress: string | null,
   ): Promise<MessageResponseDto> {
     return this.tasksService.removeByUser(id, userId, ipAddress);
+  }
+
+  @Patch('complete/:id')
+  @ApiOperation({ summary: 'Marcar una tarea como completada' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la tarea' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tarea completada exitosamente',
+    type: CompleteTaskResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'La tarea ya fue completada' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta tarea' })
+  @ApiResponse({ status: 404, description: 'Tarea no encontrada' })
+  async completeTask(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @ClientIp() ipAddress: string | null,
+  ): Promise<CompleteTaskResponseDto> {
+    return this.tasksService.completeTask(id, userId, ipAddress);
   }
 }
