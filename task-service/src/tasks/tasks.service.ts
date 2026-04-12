@@ -21,6 +21,7 @@ import { ChallengeClient } from 'src/clients/challange.client';
 import { GamificationResult } from 'src/clients/interfaces/gamification-result.interface';
 import { getEndOfDay, getStartOfDay } from 'src/common/utils/date.utils';
 import { CompleteTaskResponseDto } from './dto/complete-task-response.dto';
+import { DailySummaryDto } from './dto/daily-summary.dto';
 
 type TaskWithGoal = Prisma.TaskGetPayload<{
   include: {
@@ -493,6 +494,68 @@ export class TasksService {
       },
       gamification: this.buildGamificationResponse(gamificationResult),
       nextInstance,
+    };
+  }
+
+  async getDailySummary(userId: string): Promise<DailySummaryDto> {
+    const todayStart = getStartOfDay();
+    const todayEnd = getEndOfDay();
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        goal: { userId },
+        state: { not: 'expired' },
+        OR: [
+          { frequency: { gt: 0 } },
+          {
+            frequency: 0,
+            limitDate: { gte: todayStart, lte: todayEnd },
+          },
+          {
+            frequency: 0,
+            limitDate: null,
+            state: 'pending',
+          },
+        ],
+      },
+      include: {
+        completions: {
+          where: {
+            completedAt: { gte: todayStart, lte: todayEnd },
+          },
+        },
+      },
+    });
+
+    const taskSummaries = tasks.map((task) => {
+      const completedToday = task.completions.length > 0;
+
+      return {
+        id: task.id,
+        name: task.name,
+        state: completedToday ? 'completed' : task.state,
+        difficultyLevel: task.difficultyLevel,
+        frequency: task.frequency,
+      };
+    });
+
+    const totalTasks = taskSummaries.length;
+    const completedTasks = taskSummaries.filter(
+      (t) => t.state === 'completed',
+    ).length;
+    const pendingTasks = totalTasks - completedTasks;
+    const completionPercentage =
+      totalTasks > 0
+        ? Math.round((completedTasks / totalTasks) * 10000) / 100
+        : 0;
+
+    return {
+      date: todayStart.toISOString().split('T')[0],
+      totalTasks,
+      completedTasks,
+      pendingTasks,
+      completionPercentage,
+      tasks: taskSummaries,
     };
   }
 }

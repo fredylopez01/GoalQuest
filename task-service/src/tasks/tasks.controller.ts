@@ -31,6 +31,7 @@ import { TaskDetailResponseDto } from './dto/task-detail-response.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { MessageResponseDto } from 'src/common/dto/message-response.dto';
 import { CompleteTaskResponseDto } from './dto/complete-task-response.dto';
+import { DailySummaryDto } from './dto/daily-summary.dto';
 
 @ApiTags('Tasks')
 @ApiBearerAuth()
@@ -71,6 +72,20 @@ export class TasksController {
     @Query() filters: FilterTasksDto,
   ): Promise<PaginatedResponseDto<TaskResponseDto>> {
     return this.tasksService.findAllByUser(userId, filters);
+  }
+
+  @Get('daily-summary')
+  @ApiOperation({ summary: 'Obtener resumen de tareas del día actual' })
+  @ApiResponse({
+    status: 200,
+    description: 'Resumen diario de tareas',
+    type: DailySummaryDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  async getDailySummary(
+    @CurrentUser('userId') userId: string,
+  ): Promise<DailySummaryDto> {
+    return this.tasksService.getDailySummary(userId);
   }
 
   @Get(':id')
