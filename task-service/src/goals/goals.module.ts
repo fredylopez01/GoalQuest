@@ -8,5 +8,6 @@ import { ClientsModule } from 'src/clients/clients.module';
   imports: [PrismaModule, ClientsModule],
   controllers: [GoalsController],
   providers: [GoalsService],
+  exports: [GoalsService],
 })
 export class GoalsModule {}

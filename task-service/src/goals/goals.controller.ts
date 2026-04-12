@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -13,6 +14,7 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -21,6 +23,8 @@ import { GoalResponseDto } from './dto/goal-response.dto';
 import { CreateGoalDto } from './dto/create-goal.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { MessageResponseDto } from 'src/common/dto/message-response.dto';
+import { ClientIp } from 'src/common/decorators/client-ip.decorator';
 
 @ApiTags('Goals')
 @ApiBearerAuth()
@@ -96,5 +100,24 @@ export class GoalsController {
   ): Promise<GoalResponseDto> {
     await this.goalsService.findOneByUser(id, userId);
     return this.goalsService.editGoal(id, dataToUpdate);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Eliminar una meta y todas sus tareas asociadas' })
+  @ApiParam({ name: 'id', type: Number, description: 'ID de la meta' })
+  @ApiResponse({
+    status: 200,
+    description: 'Meta eliminada exitosamente',
+    type: MessageResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 403, description: 'No tienes acceso a esta meta' })
+  @ApiResponse({ status: 404, description: 'Meta no encontrada' })
+  async remove(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseIntPipe) id: number,
+    @ClientIp() ipAddress: string | null,
+  ): Promise<MessageResponseDto> {
+    return this.goalsService.removeByUser(id, userId, ipAddress);
   }
 }
