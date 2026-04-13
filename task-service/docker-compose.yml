@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: tasks_user
       POSTGRES_PASSWORD: tasks123
     ports:
-      - "5432:5432"
+      - '5433:5432'
     volumes:
       - tasks_db_data:/var/lib/postgresql/data
 

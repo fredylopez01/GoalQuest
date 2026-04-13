@@ -34,7 +34,15 @@ export class IdentityClient {
     }
     try {
       const { data } = await firstValueFrom(
-        this.http.post(`${this.identityUrl}/auth/validate-token`, { token }),
+        this.http.post(
+          `${this.identityUrl}/auth/validate-token`,
+          { token },
+          {
+            headers: {
+              'X-Internal-Service-Key': this.internalServiceKey,
+            },
+          },
+        ),
       );
 
       if (!data.valid) {
