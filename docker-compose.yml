@@ -1,0 +1,296 @@
+services:
+  # ════════════════════════════════════════════════════════════════════
+  # EUREKA SERVER
+  # ════════════════════════════════════════════════════════════════════
+  eureka-server:
+    build:
+      context: ./identity-service/eureka-server
+      dockerfile: Dockerfile
+    container_name: goalquest-eureka
+    ports:
+      - "8761:8761"
+    networks:
+      - goalquest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+  # ════════════════════════════════════════════════════════════════════
+  # BASES DE DATOS
+  # ════════════════════════════════════════════════════════════════════
+
+  # PostgreSQL - Identity Service
+  identity-db:
+    image: postgres:16-alpine
+    container_name: goalquest-identity-db
+    environment:
+      POSTGRES_DB: ${IDENTITY_DB_NAME}
+      POSTGRES_USER: ${IDENTITY_DB_USER}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${IDENTITY_DB_USER} -d ${IDENTITY_DB_NAME}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - goalquest-network
+
+  # PostgreSQL - Task Service
+  tasks-db:
+    image: postgres:16-alpine
+    container_name: goalquest-tasks-db
+    environment:
+      POSTGRES_DB: ${TASKS_DB_NAME}
+      POSTGRES_USER: ${TASKS_DB_USER}
+      POSTGRES_PASSWORD: ${TASKS_DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - tasks-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TASKS_DB_USER} -d ${TASKS_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - goalquest-network
+
+  # MongoDB - Challenge Service
+  mongodb-challenges:
+    image: mongo:7.0
+    container_name: goalquest-mongodb-challenges
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${CHALLENGE_MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${CHALLENGE_MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${CHALLENGE_MONGO_DB}
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb-challenges-data:/data/db
+      - ./challenge-service/mongo-init/init.js:/docker-entrypoint-initdb.d/init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - goalquest-network
+
+  # MongoDB - Gamification Service
+  mongodb-gamification:
+    image: mongo:7.0
+    container_name: goalquest-mongodb-gamification
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-gamification-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - goalquest-network
+
+  # Redis - Gamification Service
+  redis:
+    image: redis:7-alpine
+    container_name: goalquest-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - goalquest-network
+
+  # ════════════════════════════════════════════════════════════════════
+  # MICROSERVICIOS
+  # ════════════════════════════════════════════════════════════════════
+
+  # Identity Service (Java Spring Boot)
+  identity-service:
+    build:
+      context: ./identity-service/identity-service
+      dockerfile: Dockerfile
+    container_name: goalquest-identity
+    environment:
+      DB_HOST: identity-db
+      DB_PORT: 5432
+      DB_NAME: ${IDENTITY_DB_NAME}
+      DB_USER: ${IDENTITY_DB_USER}
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      EUREKA_HOST: eureka-server
+      EUREKA_INSTANCE_HOST: identity-service
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME}
+    ports:
+      - "8081:8081"
+    depends_on:
+      identity-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - goalquest-network
+
+  # Task Service (NestJS + Prisma)
+  task-service:
+    build:
+      context: ./task-service
+      dockerfile: Dockerfile
+    container_name: goalquest-tasks
+    working_dir: /app
+    volumes:
+      # Monta tu código local dentro del contenedor
+      - ./task-service:/app
+      # Volumen anónimo para node_modules (evita conflictos host/container)
+      - task_node_modules:/app/node_modules
+    environment:
+      DATABASE_URL: postgresql://${TASKS_DB_USER}:${TASKS_DB_PASSWORD}@tasks-db:5432/${TASKS_DB_NAME}
+      PORT: 3001
+      NODE_ENV: development
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8761
+      EUREKA_SERVICE_NAME: task-service
+      EUREKA_INSTANCE_HOST: task-service
+      EUREKA_INSTANCE_PORT: 3001
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      GAMIFICATION_SERVICE_URL: http://gamification-service:8000
+      CHALLENGE_SERVICE_URL: http://challenge-service:3002
+    ports:
+      - "3001:3001"
+    depends_on:
+      tasks-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    restart: "no"
+    networks:
+      - goalquest-network
+
+  # Gamification Service (FastAPI + Redis + MongoDB)
+  gamification-service:
+    build:
+      context: ./gamification-service
+      dockerfile: Dockerfile
+    container_name: goalquest-gamification
+    environment:
+      MONGODB_URL: mongodb://mongodb-gamification:27017
+      MONGODB_DB: ${GAMIFICATION_MONGO_DB}
+      REDIS_URL: redis://redis:6379
+      PORT: 8000
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8761
+      EUREKA_SERVICE_NAME: gamification-service
+      EUREKA_SERVER: http://eureka-server:8761/eureka
+      EUREKA_INSTANCE_HOST: gamification-service
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb-gamification:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - goalquest-network
+
+  # Challenge Service (NestJS + MongoDB)
+  challenge-service:
+    build:
+      context: ./challenge-service
+      dockerfile: Dockerfile
+    container_name: goalquest-challenges
+    environment:
+      PORT: 3002
+      NODE_ENV: development
+      MONGODB_URI: mongodb://${CHALLENGE_MONGO_ROOT_USER}:${CHALLENGE_MONGO_ROOT_PASSWORD}@mongodb-challenges:27017/${CHALLENGE_MONGO_DB}?authSource=admin
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8761
+      EUREKA_SERVICE_NAME: challenge-service
+      EUREKA_INSTANCE_HOST: challenge-service
+      EUREKA_INSTANCE_PORT: 3002
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY}
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      GAMIFICATION_SERVICE_URL: http://gamification-service:8000
+      XP_REWARD_WINNER: ${XP_REWARD_WINNER}
+      XP_REWARD_LOSER: ${XP_REWARD_LOSER}
+      XP_REWARD_DRAW: ${XP_REWARD_DRAW}
+    ports:
+      - "3002:3002"
+    depends_on:
+      mongodb-challenges:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    restart: on-failure
+    networks:
+      - goalquest-network
+
+  # ════════════════════════════════════════════════════════════════════
+  # HERRAMIENTAS DE ADMINISTRACIÓN (OPCIONAL)
+  # ════════════════════════════════════════════════════════════════════
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: goalquest-mongo-express
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${CHALLENGE_MONGO_ROOT_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${CHALLENGE_MONGO_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${CHALLENGE_MONGO_ROOT_USER}:${CHALLENGE_MONGO_ROOT_PASSWORD}@mongodb-challenges:27017/
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      mongodb-challenges:
+        condition: service_healthy
+    networks:
+      - goalquest-network
+
+# ══════════════════════════════════════════════════════════════════════
+# VOLÚMENES PERSISTENTES
+# ══════════════════════════════════════════════════════════════════════
+volumes:
+  identity-db-data:
+  tasks-db-data:
+  mongodb-challenges-data:
+  mongodb-gamification-data:
+  redis-data:
+  task_node_modules:
+
+# ══════════════════════════════════════════════════════════════════════
+# RED COMPARTIDA
+# ══════════════════════════════════════════════════════════════════════
+networks:
+  goalquest-network:
+    name: goalquest-network
+    driver: bridge
