@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { AuditLogRequestDto } from './dto/audit-log-request.dto';
+import { EurekaService } from 'src/eureka/eureka.service';
 
 export interface ValidatedUser {
   userId: string;
@@ -13,29 +14,51 @@ export interface ValidatedUser {
 @Injectable()
 export class IdentityClient {
   private readonly logger = new Logger(IdentityClient.name);
-  private readonly identityUrl: string | undefined;
   private readonly internalServiceKey: string | undefined;
 
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
+    private readonly eurekaService: EurekaService,
   ) {
-    this.identityUrl = this.config.get<string>('IDENTITY_SERVICE_URL');
     this.internalServiceKey = this.config.get<string>('INTERNAL_SERVICE_KEY');
   }
 
-  async validateToken(token: string): Promise<ValidatedUser | null> {
-    if (token === 'dev-token') {
-      return {
-        userId: 'dev-user-123',
-        email: 'dev@test.com',
-        rol: 'USER',
-      };
+  // ============================================================
+  // HELPER: Obtener URL de un servicio (Eureka con fallback)
+  // ============================================================
+  private getServiceUrl(serviceName: string, fallbackEnvKey: string): string {
+    const eurekaUrl = this.eurekaService.getServiceUrl(serviceName);
+    if (eurekaUrl) return eurekaUrl;
+
+    const fallbackUrl = this.config.get<string>(fallbackEnvKey);
+    if (!fallbackUrl) {
+      throw new Error(
+        `Service "${serviceName}" not found in Eureka and fallback env var "${fallbackEnvKey}" is not configured`,
+      );
     }
+
+    return fallbackUrl;
+  }
+
+  async validateToken(token: string): Promise<ValidatedUser | null> {
+    // if (token === 'dev-token') {
+    //   return {
+    //     userId: 'dev-user-123',
+    //     email: 'dev@test.com',
+    //     rol: 'USER',
+    //   };
+    // }
     try {
+      const identityUrl = this.getServiceUrl(
+        'identity-service',
+        'IDENTITY_SERVICE_URL',
+      );
+      console.log(identityUrl);
+
       const { data } = await firstValueFrom(
         this.http.post(
-          `${this.identityUrl}/auth/validate-token`,
+          `${identityUrl}/auth/validate-token`,
           { token },
           {
             headers: {
@@ -44,6 +67,7 @@ export class IdentityClient {
           },
         ),
       );
+      console.log(data);
 
       if (!data.valid) {
         return null;
@@ -61,15 +85,19 @@ export class IdentityClient {
   }
 
   async createAuditLog(dto: AuditLogRequestDto): Promise<void> {
-    if (dto.user_id === 'dev-user-123') {
-      this.logger.log(
-        `Audit log [${dto.action}] for user ${dto.user_id}: ${dto.description} (IP: ${dto.ip_address})`,
-      );
-      return;
-    }
+    // if (dto.user_id === 'dev-user-123') {
+    //   this.logger.log(
+    //     `Audit log [${dto.action}] for user ${dto.user_id}: ${dto.description} (IP: ${dto.ip_address})`,
+    //   );
+    //   return;
+    // }
     try {
+      const identityUrl = this.getServiceUrl(
+        'identity-service',
+        'IDENTITY_SERVICE_URL',
+      );
       await firstValueFrom(
-        this.http.post(`${this.identityUrl}/audit/logs`, dto, {
+        this.http.post(`${identityUrl}/audit/logs`, dto, {
           headers: {
             'X-Internal-Service-Key': this.internalServiceKey,
           },

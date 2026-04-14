@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { ChallengeUpdateResult } from './interfaces/challenge-update-result.interface';
+import { EurekaService } from 'src/eureka/eureka.service';
 
 interface UpdateProgressPayload {
   user_id: string;
@@ -14,26 +15,46 @@ interface UpdateProgressPayload {
 @Injectable()
 export class ChallengeClient {
   private readonly logger = new Logger(ChallengeClient.name);
-  private readonly baseUrl: string;
   private readonly internalServiceKey: string;
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly eurekaService: EurekaService,
   ) {
-    this.baseUrl = this.configService.get<string>('CHALLENGE_SERVICE_URL')!;
     this.internalServiceKey = this.configService.get<string>(
       'INTERNAL_SERVICE_KEY',
     )!;
+  }
+
+  // ============================================================
+  // HELPER: Obtener URL de un servicio (Eureka con fallback)
+  // ============================================================
+  private getServiceUrl(serviceName: string, fallbackEnvKey: string): string {
+    const eurekaUrl = this.eurekaService.getServiceUrl(serviceName);
+    if (eurekaUrl) return eurekaUrl;
+
+    const fallbackUrl = this.configService.get<string>(fallbackEnvKey);
+    if (!fallbackUrl) {
+      throw new Error(
+        `Service "${serviceName}" not found in Eureka and fallback env var "${fallbackEnvKey}" is not configured`,
+      );
+    }
+
+    return fallbackUrl;
   }
 
   async updateProgress(
     payload: UpdateProgressPayload,
   ): Promise<ChallengeUpdateResult | null> {
     try {
+      const challenge_url = this.getServiceUrl(
+        'challenge-service',
+        'CHALLENGE_SERVICE_URL',
+      );
       const { data } = await firstValueFrom(
         this.httpService.post<ChallengeUpdateResult>(
-          `${this.baseUrl}/challenges/update-progress`,
+          `${challenge_url}/challenges/update-progress`,
           payload,
           {
             headers: { 'X-Internal-Service-Key': this.internalServiceKey },

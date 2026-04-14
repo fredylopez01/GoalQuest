@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { GoalsModule } from './goals/goals.module';
 import { TasksModule } from './tasks/tasks.module';
 import { ConfigModule } from '@nestjs/config';
 import { ClientsModule } from './clients/clients.module';
+import { EurekaModule } from './eureka/eureka.module';
 
 @Module({
   imports: [
@@ -14,8 +13,7 @@ import { ClientsModule } from './clients/clients.module';
     GoalsModule,
     TasksModule,
     ClientsModule,
+    EurekaModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
