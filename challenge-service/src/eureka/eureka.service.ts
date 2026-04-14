@@ -86,7 +86,10 @@ export class EurekaService implements OnModuleInit, OnModuleDestroy {
       if (instances && instances.length > 0) {
         const instance = instances[0];
         const port =
-          typeof instance.port === 'object' ? instance.port : instance.port;
+          typeof instance.port === 'object' && '$' in instance.port
+            ? (instance.port as { $: number }).$
+            : instance.port;
+
         return `http://${instance.hostName}:${port}`;
       }
 

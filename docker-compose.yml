@@ -1,0 +1,90 @@
+services:
+  # ========================
+  # EUREKA
+  # ========================
+  eureka-server:
+    build: ./identity-service/eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - goalquest-network
+
+  # ========================
+  # IDENTITY
+  # ========================
+  identity-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - goalquest-network
+
+  identity-service:
+    build: ./identity-service/identity-service
+    depends_on:
+      - identity-db
+      - eureka-server
+    environment:
+      EUREKA_HOST: eureka-server
+    ports:
+      - "8081:8081"
+    networks:
+      - goalquest-network
+
+  # ========================
+  # TASK
+  # ========================
+  task-db:
+    image: postgres:16-alpine
+    networks:
+      - goalquest-network
+
+  task-service:
+    build: ./task-service
+    depends_on:
+      - task-db
+      - eureka-server
+    environment:
+      EUREKA_HOST: eureka-server
+    ports:
+      - "3001:3001"
+    networks:
+      - goalquest-network
+
+  # ========================
+  # CHALLENGE
+  # ========================
+  challenge-db:
+    image: mongo:7
+    networks:
+      - goalquest-network
+
+  challenge-service:
+    build: ./challenge-service
+    depends_on:
+      - challenge-db
+      - eureka-server
+    environment:
+      EUREKA_HOST: eureka-server
+    networks:
+      - goalquest-network
+
+  # ========================
+  # GAMIFICATION (FASTAPI)
+  # ========================
+  gamification-service:
+    build: ./gamification-service
+    depends_on:
+      - eureka-server
+    environment:
+      EUREKA_SERVER: http://eureka-server:8761/eureka
+    ports:
+      - "8000:8000"
+    networks:
+      - goalquest-network
+
+networks:
+  goalquest-network:
+    driver: bridge
