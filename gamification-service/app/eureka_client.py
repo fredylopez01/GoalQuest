@@ -4,20 +4,21 @@ import os
 import time
 
 EUREKA_SERVER = os.getenv("EUREKA_SERVER", "http://localhost:8761/eureka")
-APP_NAME = "gamification-service"
+APP_NAME = os.getenv("EUREKA_SERVICE_NAME", "gamification-service")
 PORT = int(os.getenv("PORT", 8000))
+INSTANCE_HOST = os.getenv("EUREKA_INSTANCE_HOST", "localhost")
 
 
 def register_with_eureka():
     hostname = socket.gethostname()
     ip = socket.gethostbyname(hostname)
 
-    instance_id = f"{hostname}:{APP_NAME}:{PORT}"
+    instance_id = f"{INSTANCE_HOST}:{APP_NAME}:{PORT}"
 
     data = {
         "instance": {
             "instanceId": instance_id,
-            "hostName": APP_NAME,
+            "hostName": INSTANCE_HOST,
             "app": APP_NAME.upper(),
             "ipAddr": ip,
             "status": "UP",
@@ -35,7 +36,10 @@ def register_with_eureka():
     while True:
         try:
             res = requests.post(url, json=data)
-            print("Registered in Eureka:", res.status_code)
+            print(f"Registered in Eureka: {res.status_code}")
+            print(f"  → instanceId: {instance_id}")
+            print(f"  → hostName: {INSTANCE_HOST}")
+            print(f"  → port: {PORT}")
             break
         except Exception as e:
             print("Retrying Eureka...", e)
