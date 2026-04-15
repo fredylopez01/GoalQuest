@@ -28,31 +28,40 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Actuator — health check público
-                .requestMatchers("/actuator/**").permitAll()
-                // Endpoints públicos de auth
-                .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
-                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                // Endpoints internos — validados por InternalServiceKeyFilter
-                .requestMatchers(HttpMethod.POST, "/auth/validate-token").permitAll()
-                .requestMatchers(HttpMethod.POST, "/audit/logs").permitAll()
-                // Logout requiere JWT
-                .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
-                // Perfil de usuario
-                .requestMatchers(HttpMethod.GET, "/users/profile").authenticated()
-                .requestMatchers(HttpMethod.PATCH, "/users/profile").authenticated()
-                // Búsqueda y detalle de usuarios
-                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                .requestMatchers(HttpMethod.GET, "/users").authenticated()
-                // Audit logs GET solo ADMIN
-                .requestMatchers(HttpMethod.GET, "/audit/logs").hasRole("ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(internalServiceKeyFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // ── Swagger UI ──────────────────────────────────────
+                        .requestMatchers(
+                                "/docs/**",
+                                "/docs",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/api-docs/**",
+                                "/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs")
+                        .permitAll()
+                        // ── Actuator ────────────────────────────────────────
+                        .requestMatchers("/actuator/**").permitAll()
+                        // ── Auth públicos ───────────────────────────────────
+                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        // ── Internos (validados por InternalServiceKeyFilter) ──
+                        .requestMatchers(HttpMethod.POST, "/auth/validate-token").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/audit/logs").permitAll()
+                        // ── Auth protegidos ─────────────────────────────────
+                        .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
+                        // ── Usuarios ────────────────────────────────────────
+                        .requestMatchers(HttpMethod.GET, "/users/profile").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/users/profile").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/users").authenticated()
+                        // ── Auditoría ───────────────────────────────────────
+                        .requestMatchers(HttpMethod.GET, "/audit/logs").hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .addFilterBefore(internalServiceKeyFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
