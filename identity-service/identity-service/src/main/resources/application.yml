@@ -53,3 +53,16 @@ logging:
   level:
     com.goalquest: DEBUG
     org.springframework.security: WARN
+
+# ── Swagger / SpringDoc ──────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /docs
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: none
+    default-models-expand-depth: 3
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
