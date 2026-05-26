@@ -1,0 +1,487 @@
+{
+  "info": {
+    "name": "GoalQuest - Identity Service",
+    "description": "Colección completa de endpoints del Identity Service (Dev A)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_admin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "internal_key",
+      "value": "goalquest-internal-secret-key-change-in-production",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "AUTH",
+      "item": [
+        {
+          "name": "IS-01 Registrar usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('user_id', json.id);",
+                  "    console.log('user_id guardado:', json.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Andres Test\",\n  \"email\": \"andres@test.com\",\n  \"password\": \"12345678\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Registra un nuevo usuario. Guarda automáticamente el user_id en las variables de colección."
+          }
+        },
+        {
+          "name": "IS-02 Login (guarda token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('token', json.access_token);",
+                  "    pm.collectionVariables.set('user_id', json.user.id);",
+                  "    console.log('Token guardado:', json.access_token.substring(0,30) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"andres@test.com\",\n  \"password\": \"12345678\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Autentica al usuario y guarda automáticamente el access_token en la variable {{token}}."
+          }
+        },
+        {
+          "name": "IS-02 Login ADMIN (guarda token_admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('token_admin', json.access_token);",
+                  "    console.log('Token admin guardado');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"andres@test.com\",\n  \"password\": \"12345678\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Úsalo DESPUÉS de cambiar el rol a ADMIN en la BD. Guarda el token en {{token_admin}}."
+          }
+        },
+        {
+          "name": "IS-03 Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Cierra sesión. Requiere Bearer Token. Registra acción LOGOUT en audit_log."
+          }
+        },
+        {
+          "name": "IS-04 Validar token (interno)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Service-Key", "value": "{{internal_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/validate-token",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "validate-token"]
+            },
+            "description": "Valida un JWT. Uso interno entre microservicios. Requiere X-Internal-Service-Key."
+          }
+        },
+        {
+          "name": "IS-04 Validar token SIN clave (debe dar 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/validate-token",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "validate-token"]
+            },
+            "description": "Prueba negativa: sin X-Internal-Service-Key debe responder 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "USUARIOS",
+      "item": [
+        {
+          "name": "IS-05 Ver mi perfil",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Obtiene el perfil completo del usuario autenticado."
+          }
+        },
+        {
+          "name": "IS-06 Editar perfil",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Andres Actualizado\",\n  \"avatar_url\": \"https://ejemplo.com/foto.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Edita nombre y/o avatar del usuario autenticado. Ambos campos son opcionales."
+          }
+        },
+        {
+          "name": "IS-06 Editar solo nombre",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Solo Nombre Nuevo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["users", "profile"]
+            },
+            "description": "Edita solo el nombre, sin tocar el avatar."
+          }
+        },
+        {
+          "name": "IS-07 Ver usuario por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            },
+            "description": "Obtiene datos públicos de un usuario por UUID. Devuelve id, name, avatar_url, rol (sin email)."
+          }
+        },
+        {
+          "name": "IS-07 Ver usuario ID inexistente (debe dar 404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["users", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Prueba negativa: UUID que no existe debe responder 404 USER_NOT_FOUND."
+          }
+        },
+        {
+          "name": "IS-08 Listar todos los usuarios",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Lista todos los usuarios paginados."
+          }
+        },
+        {
+          "name": "IS-08 Buscar usuarios por nombre",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?search=Andres&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "search", "value": "Andres" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Busca usuarios cuyo nombre o email contenga el término de búsqueda."
+          }
+        },
+        {
+          "name": "IS-08 Buscar usuarios por email",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?search=test.com&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "search", "value": "test.com" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Busca usuarios por fragmento de email."
+          }
+        }
+      ]
+    },
+    {
+      "name": "AUDITORÍA",
+      "item": [
+        {
+          "name": "IS-09 Ver logs (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit/logs?page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Lista todos los logs de auditoría. Requiere rol ADMIN. Usa {{token_admin}}."
+          }
+        },
+        {
+          "name": "IS-09 Ver logs filtrar por acción",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit/logs?action=LOGIN&page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "logs"],
+              "query": [
+                { "key": "action", "value": "LOGIN" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Filtra logs por acción (LOGIN, LOGOUT, etc)."
+          }
+        },
+        {
+          "name": "IS-09 Ver logs filtrar por usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit/logs?user_id={{user_id}}&page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "logs"],
+              "query": [
+                { "key": "user_id", "value": "{{user_id}}" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Filtra logs por UUID de usuario."
+          }
+        },
+        {
+          "name": "IS-09 Ver logs con token USER (debe dar 403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/audit/logs?page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "logs"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Prueba negativa: token de usuario USER debe recibir 403 FORBIDDEN."
+          }
+        },
+        {
+          "name": "IS-10 Crear log interno",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Internal-Service-Key", "value": "{{internal_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"action\": \"TASK_COMPLETED\",\n  \"description\": \"El usuario completó una tarea desde task-service\",\n  \"ip_address\": \"172.18.0.3\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/audit/logs",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "logs"]
+            },
+            "description": "Crea un log de auditoría. Uso interno entre microservicios. Requiere X-Internal-Service-Key."
+          }
+        },
+        {
+          "name": "IS-10 Crear log SIN clave (debe dar 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"action\": \"TEST\",\n  \"description\": \"Sin clave interna\",\n  \"ip_address\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/audit/logs",
+              "host": ["{{base_url}}"],
+              "path": ["audit", "logs"]
+            },
+            "description": "Prueba negativa: sin X-Internal-Service-Key debe responder 401 UNAUTHORIZED."
+          }
+        }
+      ]
+    },
+    {
+      "name": "HEALTH",
+      "item": [
+        {
+          "name": "Actuator Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Verifica que el servicio está UP. No requiere autenticación."
+          }
+        }
+      ]
+    }
+  ]
+}
