@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+
+  # ── Base de datos PostgreSQL ─────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: gq-postgres
+    environment:
+      POSTGRES_DB: ${IDENTITY_DB_NAME:-goalquest_identity}
+      POSTGRES_USER: ${IDENTITY_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_PASSWORD:-postgres_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./identity-service/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${IDENTITY_DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Eureka Server ────────────────────────────────────────────────────────────
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: gq-eureka
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Identity Service ─────────────────────────────────────────────────────────
+  identity-service:
+    build:
+      context: ./identity-service
+      dockerfile: Dockerfile
+    container_name: gq-identity
+    ports:
+      - "8081:8081"
+    environment:
+      # DB
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${IDENTITY_DB_NAME:-goalquest_identity}
+      DB_USER: ${IDENTITY_DB_USER:-postgres}
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD:-postgres_secret}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-goalquest-super-secret-key-change-in-production-min-32chars!!}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
+      # Eureka
+      EUREKA_HOST: eureka-server
+      EUREKA_INSTANCE_HOST: identity-service
+      # Internal key
+      INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-goalquest-internal-secret-key-change-in-production}
+      # Admin
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@goalquest.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin GoalQuest}
+      # Google OAuth2
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-your-google-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-your-google-client-secret}
+      # Frontend URL (para el redirect tras OAuth2)
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
