@@ -4,6 +4,7 @@ import threading
 
 from app.db.mongodb import init_db
 from app.db.redis import init_redis
+from app.cqrs.handlers import register_handlers
 from app.routers import profile, events, achievements, streak, leaderboard, reports, xp_history
 from app.eureka_client import register_with_eureka, deregister_from_eureka
 
@@ -13,6 +14,7 @@ async def lifespan(app: FastAPI):
     # ── Startup ──
     await init_db()
     await init_redis()
+    register_handlers()
 
     # Registrar en Eureka en un hilo aparte (tiene retry loop)
     threading.Thread(target=register_with_eureka, daemon=True).start()
