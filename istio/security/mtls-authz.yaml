@@ -1,0 +1,100 @@
+# ─────────────────────────────────────────────────────────────
+# mTLS STRICT para TODO el namespace
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: goalquest-mtls-strict
+  namespace: goalquest
+
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# ─────────────────────────────────────────────────────────────
+# Deshabilitar mTLS para PostgreSQL
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: postgres-disable-mtls
+  namespace: goalquest
+
+spec:
+  selector:
+    matchLabels:
+      app: identity-db
+
+  mtls:
+    mode: DISABLE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: tasks-db-disable-mtls
+  namespace: goalquest
+
+spec:
+  selector:
+    matchLabels:
+      app: tasks-db
+
+  mtls:
+    mode: DISABLE
+
+---
+# ─────────────────────────────────────────────────────────────
+# Deshabilitar mTLS para MongoDB
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: mongodb-challenges-disable-mtls
+  namespace: goalquest
+
+spec:
+  selector:
+    matchLabels:
+      app: mongodb-challenges
+
+  mtls:
+    mode: DISABLE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: mongodb-gamification-disable-mtls
+  namespace: goalquest
+
+spec:
+  selector:
+    matchLabels:
+      app: mongodb-gamification
+
+  mtls:
+    mode: DISABLE
+
+---
+# ─────────────────────────────────────────────────────────────
+# Redis sin mTLS
+# ─────────────────────────────────────────────────────────────
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: redis-disable-mtls
+  namespace: goalquest
+
+spec:
+  selector:
+    matchLabels:
+      app: redis
+
+  mtls:
+    mode: DISABLE

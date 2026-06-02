@@ -1,0 +1,212 @@
+# ═══════════════════════════════════════════════════════
+# GESTIÓN DE TRÁFICO AVANZADA
+# - Retry policies por ruta
+# - Timeouts específicos por operación
+# - Circuit Breaker con outlierDetection
+# - Fault injection para pruebas (comentado por defecto)
+# ═══════════════════════════════════════════════════════
+
+# ── EnvoyFilter: Headers de correlación de trazas ────────────────────
+# Propaga automáticamente los headers B3/W3C entre servicios
+# para que Jaeger pueda reconstruir el trace completo
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: goalquest-trace-headers
+  namespace: goalquest
+spec:
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: ANY
+        listener:
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.LuaPerRoute
+            inline_code: |
+              function envoy_on_request(request_handle)
+                -- Propagar headers de tracing si vienen del cliente
+                local trace_headers = {
+                  "x-request-id",
+                  "x-b3-traceid",
+                  "x-b3-spanid",
+                  "x-b3-parentspanid",
+                  "x-b3-sampled",
+                  "x-b3-flags",
+                  "x-ot-span-context",
+                  "traceparent",
+                  "tracestate"
+                }
+                for _, header in ipairs(trace_headers) do
+                  local val = request_handle:headers():get(header)
+                  if val then
+                    request_handle:headers():add(header, val)
+                  end
+                end
+              end
+
+---
+# ── VirtualService: Identity con Fault Injection para tests ──────────
+# DESCOMENTAR solo para pruebas de resiliencia
+# apiVersion: networking.istio.io/v1beta1
+# kind: VirtualService
+# metadata:
+#   name: identity-service-fault-test
+#   namespace: goalquest
+# spec:
+#   hosts:
+#     - identity-service
+#   http:
+#     - match:
+#         - headers:
+#             x-test-fault:
+#               exact: "delay"
+#       fault:
+#         delay:
+#           percentage:
+#             value: 50.0   # 50% de requests tendrán delay
+#           fixedDelay: 3s
+#       route:
+#         - destination:
+#             host: identity-service
+#             port:
+#               number: 8081
+#     - match:
+#         - headers:
+#             x-test-fault:
+#               exact: "abort"
+#       fault:
+#         abort:
+#           percentage:
+#             value: 30.0   # 30% de requests retornarán 503
+#           httpStatus: 503
+#       route:
+#         - destination:
+#             host: identity-service
+#             port:
+#               number: 8081
+#     - route:
+#         - destination:
+#             host: identity-service
+#             port:
+#               number: 8081
+
+---
+# ── ServiceEntry: Permitir tráfico egress a servicios externos ─────────
+# Por defecto Istio en modo REGISTRY_ONLY bloquea todo egress no declarado.
+# Estos ServiceEntry permiten que los microservicios llamen a Eureka
+# y entre sí de forma controlada.
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: eureka-external
+  namespace: goalquest
+spec:
+  hosts:
+    - eureka-server.goalquest.svc.cluster.local
+  ports:
+    - number: 8761
+      name: http
+      protocol: HTTP
+  location: MESH_INTERNAL
+  resolution: DNS
+
+---
+# ── PodDisruptionBudget: garantizar disponibilidad mínima ─────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: identity-service-pdb
+  namespace: goalquest
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: identity-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: task-service-pdb
+  namespace: goalquest
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: task-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gamification-service-pdb
+  namespace: goalquest
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gamification-service
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: challenge-service-pdb
+  namespace: goalquest
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: challenge-service
+
+---
+# ── HorizontalPodAutoscaler: escalar según tráfico ───────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: identity-service-hpa
+  namespace: goalquest
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: identity-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: task-service-hpa
+  namespace: goalquest
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: task-service
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

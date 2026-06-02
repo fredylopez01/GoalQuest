@@ -1,0 +1,55 @@
+# ─────────────────────────────────────────────────────────────
+# BUILD STAGE
+# ─────────────────────────────────────────────────────────────
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Prisma necesita openssl
+RUN apt-get update && apt-get install -y openssl
+
+# Copiar package files
+COPY package*.json ./
+
+# Instalar TODAS las dependencias
+RUN npm ci
+
+# Copiar código
+COPY . .
+
+# Generar Prisma Client
+RUN npx prisma generate
+
+# Build NestJS
+RUN npm run build
+
+# ─────────────────────────────────────────────────────────────
+# PRODUCTION STAGE
+# ─────────────────────────────────────────────────────────────
+FROM node:20-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y openssl
+
+ENV NODE_ENV=production
+
+# Copiar package files
+COPY package*.json ./
+
+# Instalar dependencias de producción
+RUN npm ci --omit=dev
+
+# Copiar build
+COPY --from=builder /app/dist ./dist
+
+# Copiar Prisma
+COPY --from=builder /app/prisma ./prisma
+
+# Copiar Prisma engines
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+EXPOSE 3001
+
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
