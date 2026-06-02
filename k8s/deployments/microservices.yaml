@@ -1,0 +1,577 @@
+# ═══════════════════════════════════════════════════════
+# MICROSERVICIOS GoalQuest
+# Istio inyecta automáticamente el sidecar Envoy en cada pod
+# gracias al label istio-injection=enabled en el namespace
+# ═══════════════════════════════════════════════════════
+
+# ── Eureka Server ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: goalquest
+  labels:
+    app: eureka-server
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+        version: v1
+      annotations:
+        # Istio lee estas anotaciones para configurar el sidecar
+        sidecar.istio.io/inject: "true"
+        # Excluir puertos de la redirección de Envoy para health checks
+        traffic.sidecar.istio.io/excludeInboundPorts: ""
+        traffic.sidecar.istio.io/excludeOutboundPorts: ""
+    spec:
+      containers:
+        - name: eureka-server
+          # Reemplaza con tu imagen de Docker Hub o registry local
+          image: goalquest/eureka-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8761
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: goalquest
+  labels:
+    app: eureka-server
+spec:
+  selector:
+    app: eureka-server
+  ports:
+    - port: 8761
+      targetPort: 8761
+      name: http
+      nodePort: 30000
+  type: NodePort
+
+---
+# ── Identity Service ─────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+  namespace: goalquest
+  labels:
+    app: identity-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: identity-service
+  template:
+    metadata:
+      labels:
+        app: identity-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+        # Prometheus scraping desde Istio
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      initContainers:
+        # Esperar a que la DB esté lista antes de arrancar
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z identity-db 5432; do echo waiting for identity-db; sleep 2; done",
+            ]
+      containers:
+        - name: identity-service
+          image: goalquest/identity-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: DB_HOST
+              value: "identity-db"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: IDENTITY_DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: IDENTITY_DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: IDENTITY_DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: JWT_SECRET
+            - name: JWT_EXPIRATION
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: JWT_EXPIRATION
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: INTERNAL_SERVICE_KEY
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: ADMIN_EMAIL
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: ADMIN_PASSWORD
+            - name: ADMIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: ADMIN_NAME
+            # Eureka usa DNS de K8s en lugar de IP
+            - name: EUREKA_HOST
+              value: "eureka-server"
+            - name: EUREKA_INSTANCE_HOST
+              value: "identity-service"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 90
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-service
+  namespace: goalquest
+  labels:
+    app: identity-service
+spec:
+  selector:
+    app: identity-service
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+      nodePort: 30081
+  type: NodePort
+
+---
+# ── Task Service ─────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-service
+  namespace: goalquest
+  labels:
+    app: task-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-service
+  template:
+    metadata:
+      labels:
+        app: task-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z tasks-db 5432; do echo waiting for tasks-db; sleep 2; done",
+            ]
+        - name: wait-for-identity
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z identity-service 8081; do echo waiting for identity-service; sleep 3; done",
+            ]
+      containers:
+        - name: task-service
+          image: goalquest/task-service:latest
+          imagePullPolicy: Never
+          command:
+            - sh
+            - -c
+
+          args:
+            - sleep infinity
+          ports:
+            - containerPort: 3001
+              name: http
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://tasks_user:tasks123@tasks-db:5432/tasks_db"
+            - name: PORT
+              value: "3001"
+            - name: NODE_ENV
+              value: "production"
+            - name: EUREKA_HOST
+              value: "eureka-server"
+            - name: EUREKA_PORT
+              value: "8761"
+            - name: EUREKA_SERVICE_NAME
+              value: "task-service"
+            - name: EUREKA_INSTANCE_HOST
+              value: "task-service"
+            - name: EUREKA_INSTANCE_PORT
+              value: "3001"
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: INTERNAL_SERVICE_KEY
+            # Con Istio los servicios se resuelven por DNS de K8s,
+            # no se necesita Eureka para la URL, pero se mantiene como fallback
+            - name: IDENTITY_SERVICE_URL
+              value: "http://identity-service:8081"
+            - name: GAMIFICATION_SERVICE_URL
+              value: "http://gamification-service:8000"
+            - name: CHALLENGE_SERVICE_URL
+              value: "http://challenge-service:3002"
+          readinessProbe:
+            httpGet:
+              path: /api/docs
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-service
+  namespace: goalquest
+  labels:
+    app: task-service
+spec:
+  selector:
+    app: task-service
+  ports:
+    - port: 3001
+      targetPort: 3001
+      name: http
+      nodePort: 30001
+  type: NodePort
+
+---
+# ── Gamification Service ─────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gamification-service
+  namespace: goalquest
+  labels:
+    app: gamification-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gamification-service
+  template:
+    metadata:
+      labels:
+        app: gamification-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      initContainers:
+        - name: wait-for-mongo
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z mongodb-gamification 27017; do echo waiting for mongodb; sleep 2; done",
+            ]
+        - name: wait-for-redis
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z redis 6379; do echo waiting for redis; sleep 2; done",
+            ]
+      containers:
+        - name: gamification-service
+          image: goalquest/gamification-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: MONGODB_URL
+              value: "mongodb://mongodb-gamification:27017"
+            - name: MONGODB_DB
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: GAMIFICATION_MONGO_DB
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+            - name: PORT
+              value: "8000"
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: INTERNAL_SERVICE_KEY
+            - name: EUREKA_HOST
+              value: "eureka-server"
+            - name: EUREKA_PORT
+              value: "8761"
+            - name: EUREKA_SERVICE_NAME
+              value: "gamification-service"
+            - name: EUREKA_SERVER
+              value: "http://eureka-server:8761/eureka"
+            - name: EUREKA_INSTANCE_HOST
+              value: "gamification-service"
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "150m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gamification-service
+  namespace: goalquest
+  labels:
+    app: gamification-service
+spec:
+  selector:
+    app: gamification-service
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+      nodePort: 30800
+  type: NodePort
+
+---
+# ── Challenge Service ────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: challenge-service
+  namespace: goalquest
+  labels:
+    app: challenge-service
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: challenge-service
+  template:
+    metadata:
+      labels:
+        app: challenge-service
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "true"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3002"
+    spec:
+      initContainers:
+        - name: wait-for-mongo
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z mongodb-challenges 27017; do echo waiting for mongodb; sleep 2; done",
+            ]
+        - name: wait-for-identity
+          image: busybox:1.36
+          command:
+            [
+              "sh",
+              "-c",
+              "until nc -z identity-service 8081; do echo waiting for identity-service; sleep 3; done",
+            ]
+      containers:
+        - name: challenge-service
+          image: goalquest/challenge-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3002
+              name: http
+          env:
+            - name: PORT
+              value: "3002"
+            - name: NODE_ENV
+              value: "production"
+            - name: MONGODB_URI
+              value: "mongodb://admin:admin123@mongodb-challenges:27017/challenge_db?authSource=admin"
+            - name: EUREKA_HOST
+              value: "eureka-server"
+            - name: EUREKA_PORT
+              value: "8761"
+            - name: EUREKA_SERVICE_NAME
+              value: "challenge-service"
+            - name: EUREKA_INSTANCE_HOST
+              value: "challenge-service"
+            - name: EUREKA_INSTANCE_PORT
+              value: "3002"
+            - name: INTERNAL_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: INTERNAL_SERVICE_KEY
+            - name: IDENTITY_SERVICE_URL
+              value: "http://identity-service:8081"
+            - name: GAMIFICATION_SERVICE_URL
+              value: "http://gamification-service:8000"
+            - name: XP_REWARD_WINNER
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: XP_REWARD_WINNER
+            - name: XP_REWARD_LOSER
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: XP_REWARD_LOSER
+            - name: XP_REWARD_DRAW
+              valueFrom:
+                secretKeyRef:
+                  name: goalquest-secrets
+                  key: XP_REWARD_DRAW
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "150m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: challenge-service
+  namespace: goalquest
+  labels:
+    app: challenge-service
+spec:
+  selector:
+    app: challenge-service
+  ports:
+    - port: 3002
+      targetPort: 3002
+      name: http
+      nodePort: 30002
+  type: NodePort

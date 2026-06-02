@@ -1,0 +1,299 @@
+# ═══════════════════════════════════════════════════════
+# ISTIO BASE: Gateway + VirtualServices + DestinationRules
+# ═══════════════════════════════════════════════════════
+
+# ── Gateway (punto de entrada externo) ───────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: goalquest-gateway
+  namespace: goalquest
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+
+---
+# ── VirtualService: Eureka ───────────────────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: eureka-vs
+  namespace: goalquest
+spec:
+  hosts:
+    - "eureka-server"
+    - "eureka.goalquest.local"
+  gateways:
+    - goalquest-gateway
+    - mesh   # 'mesh' aplica para tráfico interno entre pods
+  http:
+    - match:
+        - uri:
+            prefix: /eureka
+      route:
+        - destination:
+            host: eureka-server
+            port:
+              number: 8761
+      timeout: 10s
+      retries:
+        attempts: 3
+        perTryTimeout: 3s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+---
+# ── VirtualService: Identity Service ────────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: identity-service-vs
+  namespace: goalquest
+spec:
+  hosts:
+    - "identity-service"
+    - "identity.goalquest.local"
+  gateways:
+    - goalquest-gateway
+    - mesh
+  http:
+    # Rutas de autenticación (más permisivas)
+    - match:
+        - uri:
+            prefix: /auth
+        - uri:
+            prefix: /users
+        - uri:
+            prefix: /audit
+      route:
+        - destination:
+            host: identity-service
+            port:
+              number: 8081
+      timeout: 15s
+      retries:
+        attempts: 3
+        perTryTimeout: 5s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+      # Circuit breaker a nivel de ruta via outlierDetection en DestinationRule
+    - match:
+        - uri:
+            prefix: /actuator
+      route:
+        - destination:
+            host: identity-service
+            port:
+              number: 8081
+      timeout: 5s
+
+---
+# ── VirtualService: Task Service ────────────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: task-service-vs
+  namespace: goalquest
+spec:
+  hosts:
+    - "task-service"
+    - "tasks.goalquest.local"
+  gateways:
+    - goalquest-gateway
+    - mesh
+  http:
+    - match:
+        - uri:
+            prefix: /goals
+        - uri:
+            prefix: /tasks
+      route:
+        - destination:
+            host: task-service
+            port:
+              number: 3001
+      timeout: 30s
+      retries:
+        attempts: 3
+        perTryTimeout: 10s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+---
+# ── VirtualService: Gamification Service ────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: gamification-service-vs
+  namespace: goalquest
+spec:
+  hosts:
+    - "gamification-service"
+    - "gamification.goalquest.local"
+  gateways:
+    - goalquest-gateway
+    - mesh
+  http:
+    - match:
+        - uri:
+            prefix: /gamification
+      route:
+        - destination:
+            host: gamification-service
+            port:
+              number: 8000
+      timeout: 20s
+      retries:
+        attempts: 3
+        perTryTimeout: 7s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+---
+# ── VirtualService: Challenge Service ───────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: challenge-service-vs
+  namespace: goalquest
+spec:
+  hosts:
+    - "challenge-service"
+    - "challenges.goalquest.local"
+  gateways:
+    - goalquest-gateway
+    - mesh
+  http:
+    - match:
+        - uri:
+            prefix: /challenges
+      route:
+        - destination:
+            host: challenge-service
+            port:
+              number: 3002
+      timeout: 20s
+      retries:
+        attempts: 3
+        perTryTimeout: 7s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+---
+# ── DestinationRule: Identity Service (circuit breaker) ──────────────
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: identity-service-dr
+  namespace: goalquest
+spec:
+  host: identity-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: UPGRADE
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+        maxRequestsPerConnection: 10
+    # Circuit Breaker: expulsa pods problemáticos
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+    # mTLS - se sobreescribe por PeerAuthentication global
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# ── DestinationRule: Task Service ───────────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: task-service-dr
+  namespace: goalquest
+spec:
+  host: task-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 500
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# ── DestinationRule: Gamification Service ───────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: gamification-service-dr
+  namespace: goalquest
+spec:
+  host: gamification-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 500
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# ── DestinationRule: Challenge Service ──────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: challenge-service-dr
+  namespace: goalquest
+spec:
+  host: challenge-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 500
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+# ── DestinationRule para bases de datos (TCP, sin mTLS) ──────────────
+# Las DBs son pods sin sidecar de Istio, usamos DISABLE para ellas
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: databases-dr
+  namespace: goalquest
+spec:
+  host: "*.goalquest.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+  exportTo:
+    - "."
