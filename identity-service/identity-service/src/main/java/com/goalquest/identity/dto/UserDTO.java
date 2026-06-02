@@ -22,7 +22,7 @@ public class UserDTO {
     @Schema(description = "Email del usuario", example = "juan@example.com")
     private String email;
 
-    @Schema(description = "Rol del usuario en el sistema", example = "USER", allowableValues = { "USER", "ADMIN" })
+    @Schema(description = "Rol del usuario en el sistema", example = "USER", allowableValues = {"USER", "ADMIN"})
     private String rol;
 
     @Schema(description = "URL de la imagen de perfil", example = "https://example.com/avatar.jpg", nullable = true)
@@ -33,6 +33,14 @@ public class UserDTO {
     @JsonProperty("created_at")
     private String createdAt;
 
+    @Schema(description = "Proveedor OAuth2 ('google', 'github', etc.). Null si es cuenta local.", nullable = true)
+    @JsonProperty("oauth2_provider")
+    private String oauth2Provider;
+
+    @Schema(description = "Indica si el usuario tiene contraseña local configurada")
+    @JsonProperty("has_password")
+    private boolean hasPassword;
+
     public static UserDTO fromEntity(User user) {
         return UserDTO.builder()
                 .id(user.getId().toString())
@@ -41,6 +49,8 @@ public class UserDTO {
                 .rol(user.getRol())
                 .avatarUrl(user.getAvatarUrl())
                 .createdAt(user.getCreatedAt().format(DateTimeFormatter.ISO_DATE_TIME))
+                .oauth2Provider(user.getOauth2Provider())
+                .hasPassword(user.getHashPassword() != null)
                 .build();
     }
 }

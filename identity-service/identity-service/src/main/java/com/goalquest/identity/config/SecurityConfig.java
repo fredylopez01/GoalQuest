@@ -3,6 +3,7 @@ package com.goalquest.identity.config;
 import com.goalquest.identity.security.InternalServiceKeyFilter;
 import com.goalquest.identity.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,43 +26,50 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final InternalServiceKeyFilter internalServiceKeyFilter;
 
+    @Value("${app.frontend-url:http://localhost:8081}")
+    private String frontendUrl;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // ── Swagger UI ──────────────────────────────────────
-                        .requestMatchers(
-                                "/docs/**",
-                                "/docs",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/api-docs/**",
-                                "/api-docs",
-                                "/v3/api-docs/**",
-                                "/v3/api-docs")
-                        .permitAll()
-                        // ── Actuator ────────────────────────────────────────
-                        .requestMatchers("/actuator/**").permitAll()
-                        // ── Auth públicos ───────────────────────────────────
-                        .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
-                        // ── Internos (validados por InternalServiceKeyFilter) ──
-                        .requestMatchers(HttpMethod.POST, "/auth/validate-token").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/audit/logs").permitAll()
-                        // ── Auth protegidos ─────────────────────────────────
-                        .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
-                        // ── Usuarios ────────────────────────────────────────
-                        .requestMatchers(HttpMethod.GET, "/users/profile").authenticated()
-                        .requestMatchers(HttpMethod.PATCH, "/users/profile").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/users").authenticated()
-                        // ── Auditoría ───────────────────────────────────────
-                        .requestMatchers(HttpMethod.GET, "/audit/logs").hasRole("ADMIN")
-                        .anyRequest().authenticated())
-                .addFilterBefore(internalServiceKeyFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/docs/**", "/docs", "/swagger-ui/**", "/swagger-ui.html",
+                    "/api-docs/**", "/api-docs", "/v3/api-docs/**", "/v3/api-docs")
+                .permitAll()
+                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                .requestMatchers("/oauth2/**").permitAll()
+                .requestMatchers("/login/oauth2/**").permitAll()
+                .requestMatchers("/auth/oauth2/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/validate-token").permitAll()
+                .requestMatchers(HttpMethod.POST, "/audit/logs").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/logout").authenticated()
+                .requestMatchers(HttpMethod.GET, "/users/profile").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/users/profile").authenticated()
+                .requestMatchers(HttpMethod.GET, "/users/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/users").authenticated()
+                .requestMatchers(HttpMethod.GET, "/audit/logs").hasRole("ADMIN")
+                .anyRequest().authenticated())
+
+            .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(e -> e.baseUri("/oauth2/authorization"))
+                .redirectionEndpoint(e -> e.baseUri("/login/oauth2/code/*"))
+                .successHandler((request, response, authentication) -> {
+                    request.getRequestDispatcher("/auth/oauth2/callback/google")
+                           .forward(request, response);
+                })
+                .failureHandler((request, response, exception) -> {
+                    response.sendRedirect(frontendUrl
+                        + "/oauth2/error?msg=" + exception.getMessage());
+                })
+            )
+
+            .addFilterBefore(internalServiceKeyFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

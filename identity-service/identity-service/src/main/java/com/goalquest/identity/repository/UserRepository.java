@@ -1,6 +1,8 @@
 package com.goalquest.identity.repository;
 
 import com.goalquest.identity.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,23 +15,32 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-       Optional<User> findByEmail(String email);
+    Optional<User> findByEmail(String email);
 
-       boolean existsByEmail(String email);
+    boolean existsByEmail(String email);
 
-       @Query(value = "SELECT * FROM users u WHERE " +
-                     "(:search IS NULL OR " +
-                     "LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:search AS VARCHAR), '%')) OR " +
-                     "LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:search AS VARCHAR), '%'))) " +
-                     "ORDER BY u.name " +
-                     "LIMIT :limit OFFSET :offset", nativeQuery = true)
-       List<User> searchUsersNative(@Param("search") String search,
-                     @Param("limit") int limit,
-                     @Param("offset") long offset);
+    Page<User> findAll(Pageable pageable);
 
-       @Query(value = "SELECT COUNT(*) FROM users u WHERE " +
-                     "(:search IS NULL OR " +
-                     "LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:search AS VARCHAR), '%')) OR " +
-                     "LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:search AS VARCHAR), '%')))", nativeQuery = true)
-       long countSearchUsers(@Param("search") String search);
+    /** Buscar usuario por proveedor OAuth2 y su ID en ese proveedor. */
+    Optional<User> findByOauth2ProviderAndOauth2Id(String oauth2Provider, String oauth2Id);
+
+    // ── Métodos originales de búsqueda paginada ──────────────────────────────
+
+    @Query(value = """
+            SELECT * FROM users
+            WHERE LOWER(name) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(email) LIKE LOWER(CONCAT('%', :search, '%'))
+            LIMIT :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<User> searchUsersNative(
+            @Param("search") String search,
+            @Param("limit") int limit,
+            @Param("offset") long offset);
+
+    @Query(value = """
+            SELECT COUNT(*) FROM users
+            WHERE LOWER(name) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(email) LIKE LOWER(CONCAT('%', :search, '%'))
+            """, nativeQuery = true)
+    long countSearchUsers(@Param("search") String search);
 }
