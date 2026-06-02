@@ -1,0 +1,534 @@
+kubectl get pods -n goalquest
+NAME                                    READY   STATUS    RESTARTS   AGE
+identity-db-689588f495-pshst            2/2     Running   0          14m
+mongodb-challenges-6bfb9dc997-5fbcc     1/2     Running   0          14m
+mongodb-gamification-7f6cb54b7b-9rfdt   1/2     Running   0          14m
+redis-5f8d5b6cc5-fprzb                  2/2     Running   0          14m
+tasks-db-cdf4f6f-psnxg                  2/2     Running   0          14m
+
+"kubectl describe pod mongodb-challenges-6bfb9dc997-5fbcc -n goalquest
+Name:             mongodb-challenges-6bfb9dc997-5fbcc
+Namespace:        goalquest
+Priority:         0
+Service Account:  default
+Node:             goalquest-worker/172.21.0.3
+Start Time:       Wed, 27 May 2026 10:03:33 -0500
+Labels:           app=mongodb-challenges
+                  pod-template-hash=6bfb9dc997
+                  security.istio.io/tlsMode=istio
+                  service.istio.io/canonical-name=mongodb-challenges
+                  service.istio.io/canonical-revision=latest
+                  tier=database
+Annotations:      istio.io/rev: default
+                  kubectl.kubernetes.io/default-container: mongo
+                  kubectl.kubernetes.io/default-logs-container: mongo
+                  prometheus.io/path: /stats/prometheus
+                  prometheus.io/port: 15020
+                  prometheus.io/scrape: true
+                  sidecar.istio.io/status:
+                    {"initContainers":["istio-init","istio-proxy"],"containers":null,"volumes":["workload-socket","credential-socket","workload-certs","istio-...
+Status:           Running
+IP:               10.244.2.8
+IPs:
+  IP:           10.244.2.8
+Controlled By:  ReplicaSet/mongodb-challenges-6bfb9dc997
+Init Containers:
+  istio-init:
+    Container ID:  containerd://69cec1fb611c9dacc82fb1a5ff513512c9b4ad1f8553184fd4ef4cb8fac1c8b5
+    Image:         docker.io/istio/proxyv2:1.29.2
+    Image ID:      docker.io/istio/proxyv2@sha256:69ca4585993f4057861954f18be88df8268b713d114e7036bf9b185458c7a2c1
+    Port:          <none>
+    Host Port:     <none>
+    Args:
+      istio-iptables
+      -p
+      15001
+      -z
+      15006
+      -u
+      1337
+      -m
+      REDIRECT
+      -i
+      *
+      -x
+      
+      -b
+      *
+      -d
+      15090,15021,15020
+      --log_output_level=default:info
+    State:          Terminated
+      Reason:       Completed
+      Exit Code:    0
+      Started:      Wed, 27 May 2026 10:03:34 -0500
+      Finished:     Wed, 27 May 2026 10:03:34 -0500
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     2
+      memory:  1Gi
+    Requests:
+      cpu:        10m
+      memory:     40Mi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-pgdwj (ro)
+  istio-proxy:
+    Container ID:  containerd://f102cac6b137debaee821e6446ed040ca07d6aba4236552e4e80c34da69c2570
+    Image:         docker.io/istio/proxyv2:1.29.2
+    Image ID:      docker.io/istio/proxyv2@sha256:69ca4585993f4057861954f18be88df8268b713d114e7036bf9b185458c7a2c1
+    Port:          15090/TCP (http-envoy-prom)
+    Host Port:     0/TCP (http-envoy-prom)
+    Args:
+      proxy
+      sidecar
+      --domain
+      $(POD_NAMESPACE).svc.cluster.local
+      --proxyLogLevel=warning
+      --proxyComponentLogLevel=misc:error
+      --log_output_level=default:info
+    State:          Running
+      Started:      Wed, 27 May 2026 10:03:36 -0500
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     2
+      memory:  1Gi
+    Requests:
+      cpu:      10m
+      memory:   40Mi
+    Readiness:  http-get http://:15021/healthz/ready delay=0s timeout=3s period=15s #success=1 #failure=4
+    Startup:    http-get http://:15021/healthz/ready delay=0s timeout=3s period=1s #success=1 #failure=600
+    Environment:
+      PILOT_CERT_PROVIDER:           istiod
+      CA_ADDR:                       istiod.istio-system.svc:15012
+      POD_NAME:                      mongodb-challenges-6bfb9dc997-5fbcc (v1:metadata.name)
+      POD_NAMESPACE:                 goalquest (v1:metadata.namespace)
+      INSTANCE_IP:                    (v1:status.podIP)
+      SERVICE_ACCOUNT:                (v1:spec.serviceAccountName)
+      HOST_IP:                        (v1:status.hostIP)
+      ISTIO_CPU_LIMIT:               2 (limits.cpu)
+      PROXY_CONFIG:                  {}
+                                     
+      ISTIO_META_POD_PORTS:          [
+                                         {"containerPort":27017,"protocol":"TCP"}
+                                     ]
+      ISTIO_META_APP_CONTAINERS:     mongo
+      GOMEMLIMIT:                    1073741824 (limits.memory)
+      GOMAXPROCS:                    2 (limits.cpu)
+      ISTIO_META_CLUSTER_ID:         Kubernetes
+      ISTIO_META_NODE_NAME:           (v1:spec.nodeName)
+      ISTIO_META_INTERCEPTION_MODE:  REDIRECT
+      ISTIO_META_WORKLOAD_NAME:      mongodb-challenges
+      ISTIO_META_OWNER:              kubernetes://apis/apps/v1/namespaces/goalquest/deployments/mongodb-challenges
+      ISTIO_META_MESH_ID:            cluster.local
+      TRUST_DOMAIN:                  cluster.local
+    Mounts:
+      /etc/istio/pod from istio-podinfo (rw)
+      /etc/istio/proxy from istio-envoy (rw)
+      /var/lib/istio/data from istio-data (rw)
+      /var/run/secrets/credential-uds from credential-socket (rw)
+      /var/run/secrets/istio from istiod-ca-cert (rw)
+      /var/run/secrets/istio/crl from istio-ca-crl (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-pgdwj (ro)
+      /var/run/secrets/tokens from istio-token (rw)
+      /var/run/secrets/workload-spiffe-credentials from workload-certs (rw)
+      /var/run/secrets/workload-spiffe-uds from workload-socket (rw)
+Containers:
+  mongo:
+    Container ID:   containerd://1a7b9af587899ef807cd50fd1284efb3c757b01a1a0c089aeff4d571cd8c1b2a
+    Image:          mongo:7.0
+    Image ID:       docker.io/library/mongo@sha256:4b5bf3c2bb7516164f6dcb44acce4fdcb428abfe5771a1128304a0f34ab9ff7c
+    Port:           27017/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Wed, 27 May 2026 10:05:03 -0500
+    Ready:          False
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  512Mi
+    Requests:
+      cpu:      100m
+      memory:   256Mi
+    Readiness:  exec [mongosh --eval db.adminCommand('ping')] delay=15s timeout=1s period=10s #success=1 #failure=3
+    Environment:
+      MONGO_INITDB_ROOT_USERNAME:  <set to the key 'CHALLENGE_MONGO_ROOT_USER' in secret 'goalquest-secrets'>      Optional: false
+      MONGO_INITDB_ROOT_PASSWORD:  <set to the key 'CHALLENGE_MONGO_ROOT_PASSWORD' in secret 'goalquest-secrets'>  Optional: false
+      MONGO_INITDB_DATABASE:       <set to the key 'CHALLENGE_MONGO_DB' in secret 'goalquest-secrets'>             Optional: false
+    Mounts:
+      /data/db from data (rw)
+      /docker-entrypoint-initdb.d from init-script (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-pgdwj (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       False 
+  ContainersReady             False 
+  PodScheduled                True 
+Volumes:
+  workload-socket:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  credential-socket:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  workload-certs:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  istio-envoy:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  <unset>
+  istio-data:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  istio-podinfo:
+    Type:  DownwardAPI (a volume populated by information about the pod)
+    Items:
+      metadata.labels -> labels
+      metadata.annotations -> annotations
+  istio-token:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  43200
+  istiod-ca-cert:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      istio-ca-root-cert
+    Optional:  false
+  istio-ca-crl:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      istio-ca-crl
+    Optional:  true
+  data:
+    Type:       PersistentVolumeClaim (a reference to a PersistentVolumeClaim in the same namespace)
+    ClaimName:  mongodb-challenges-pvc
+    ReadOnly:   false
+  init-script:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      mongodb-challenges-init
+    Optional:  false
+  kube-api-access-pgdwj:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason            Age                   From               Message
+  ----     ------            ----                  ----               -------
+  Warning  FailedScheduling  15m                   default-scheduler  0/3 nodes are available: persistentvolumeclaim "mongodb-challenges-pvc" not found. not found
+  Normal   Scheduled         14m                   default-scheduler  Successfully assigned goalquest/mongodb-challenges-6bfb9dc997-5fbcc to goalquest-worker
+  Normal   Pulled            14m                   kubelet            Container image "docker.io/istio/proxyv2:1.29.2" already present on machine and can be accessed by the pod
+  Normal   Created           14m                   kubelet            Container created
+  Normal   Started           14m                   kubelet            Container started
+  Normal   Pulled            14m                   kubelet            Container image "docker.io/istio/proxyv2:1.29.2" already present on machine and can be accessed by the pod
+  Normal   Created           14m                   kubelet            Container created
+  Normal   Started           14m                   kubelet            Container started
+  Normal   Pulling           14m                   kubelet            Pulling image "mongo:7.0"
+  Normal   Pulled            13m                   kubelet            Successfully pulled image "mongo:7.0" in 1m24.811s (1m24.811s including waiting). Image size: 293225943 bytes.
+  Normal   Created           13m                   kubelet            Container created
+  Normal   Started           13m                   kubelet            Container started
+  Warning  Unhealthy         2m57s (x65 over 13m)  kubelet            Readiness probe failed: command timed out: "mongosh --eval db.adminCommand('ping')" timed out after 1s
+"
+"kubectl logs mongodb-challenges-6bfb9dc997-5fbcc -n goalquest
+about to fork child process, waiting until server is ready for connections.
+forked process: 35
+
+{"t":{"$date":"2026-05-27T15:05:03.683+00:00"},"s":"I",  "c":"CONTROL",  "id":20698,   "ctx":"main","msg":"***** SERVER RESTARTED *****"}
+{"t":{"$date":"2026-05-27T15:05:03.687+00:00"},"s":"I",  "c":"CONTROL",  "id":23285,   "ctx":"main","msg":"Automatically disabling TLS 1.0, to force-enable TLS 1.0 specify --sslDisabledProtocols 'none'"}
+{"t":{"$date":"2026-05-27T15:05:03.740+00:00"},"s":"I",  "c":"NETWORK",  "id":4915701, "ctx":"main","msg":"Initialized wire specification","attr":{"spec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":21},"outgoing":{"minWireVersion":6,"maxWireVersion":21},"isInternalClient":true}}}
+{"t":{"$date":"2026-05-27T15:05:03.746+00:00"},"s":"I",  "c":"NETWORK",  "id":4648601, "ctx":"main","msg":"Implicit TCP FastOpen unavailable. If TCP FastOpen is required, set tcpFastOpenServer, tcpFastOpenClient, and tcpFastOpenQueueSize."}
+{"t":{"$date":"2026-05-27T15:05:03.754+00:00"},"s":"I",  "c":"REPL",     "id":5123008, "ctx":"main","msg":"Successfully registered PrimaryOnlyService","attr":{"service":"TenantMigrationDonorService","namespace":"config.tenantMigrationDonors"}}
+{"t":{"$date":"2026-05-27T15:05:03.754+00:00"},"s":"I",  "c":"REPL",     "id":5123008, "ctx":"main","msg":"Successfully registered PrimaryOnlyService","attr":{"service":"TenantMigrationRecipientService","namespace":"config.tenantMigrationRecipients"}}
+{"t":{"$date":"2026-05-27T15:05:03.754+00:00"},"s":"W",  "c":"NETWORK",  "id":11621101,"ctx":"main","msg":"Overriding max connections to honor `capMemoryConsumptionForPreAuthBuffers` settings","attr":{"limit":6553}}
+{"t":{"$date":"2026-05-27T15:05:03.754+00:00"},"s":"I",  "c":"CONTROL",  "id":5945603, "ctx":"main","msg":"Multi threading initialized"}
+{"t":{"$date":"2026-05-27T15:05:03.755+00:00"},"s":"I",  "c":"TENANT_M", "id":7091600, "ctx":"main","msg":"Starting TenantMigrationAccessBlockerRegistry"}
+{"t":{"$date":"2026-05-27T15:05:03.756+00:00"},"s":"I",  "c":"CONTROL",  "id":4615611, "ctx":"initandlisten","msg":"MongoDB starting","attr":{"pid":35,"port":27017,"dbPath":"/data/db","architecture":"64-bit","host":"mongodb-challenges-6bfb9dc997-5fbcc"}}
+{"t":{"$date":"2026-05-27T15:05:03.757+00:00"},"s":"W",  "c":"CONTROL",  "id":20720,   "ctx":"initandlisten","msg":"Memory available to mongo process is less than total system memory","attr":{"availableMemSizeMB":512,"systemMemSizeMB":9603}}
+{"t":{"$date":"2026-05-27T15:05:03.757+00:00"},"s":"I",  "c":"CONTROL",  "id":23403,   "ctx":"initandlisten","msg":"Build Info","attr":{"buildInfo":{"version":"7.0.34","gitVersion":"ed9a6630253d3bc301e5ef19606704715d1e2066","openSSLVersion":"OpenSSL 3.0.2 15 Mar 2022","modules":[],"allocator":"tcmalloc","environment":{"distmod":"ubuntu2204","distarch":"x86_64","target_arch":"x86_64"}}}}
+{"t":{"$date":"2026-05-27T15:05:03.757+00:00"},"s":"I",  "c":"CONTROL",  "id":51765,   "ctx":"initandlisten","msg":"Operating System","attr":{"os":{"name":"Ubuntu","version":"22.04"}}}
+{"t":{"$date":"2026-05-27T15:05:03.757+00:00"},"s":"I",  "c":"CONTROL",  "id":21951,   "ctx":"initandlisten","msg":"Options set by command line","attr":{"options":{"net":{"bindIp":"127.0.0.1","port":27017,"tls":{"mode":"disabled"}},"processManagement":{"fork":true,"pidFilePath":"/tmp/docker-entrypoint-temp-mongod.pid"},"systemLog":{"destination":"file","logAppend":true,"path":"/proc/1/fd/1"}}}}
+{"t":{"$date":"2026-05-27T15:05:03.757+00:00"},"s":"W",  "c":"NETWORK",  "id":11621101,"ctx":"initandlisten","msg":"Overriding max connections to honor `capMemoryConsumptionForPreAuthBuffers` settings","attr":{"limit":6553}}
+{"t":{"$date":"2026-05-27T15:05:03.763+00:00"},"s":"I",  "c":"STORAGE",  "id":22297,   "ctx":"initandlisten","msg":"Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem","tags":["startupWarnings"]}
+{"t":{"$date":"2026-05-27T15:05:03.765+00:00"},"s":"I",  "c":"STORAGE",  "id":22315,   "ctx":"initandlisten","msg":"Opening WiredTiger","attr":{"config":"create,cache_size=256M,session_max=33000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,remove=true,path=journal,compressor=snappy),builtin_extension_config=(zstd=(compression_level=6)),file_manager=(close_idle_time=600,close_scan_interval=10,close_handle_minimum=2000),statistics_log=(wait=0),json_output=(error,message),verbose=[recovery_progress:1,checkpoint_progress:1,compact_progress:1,backup:0,checkpoint:0,compact:0,evict:0,history_store:0,recovery:0,rts:0,salvage:0,tiered:0,timestamp:0,transaction:0,verify:0,log:0],"}}
+{"t":{"$date":"2026-05-27T15:05:04.723+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894304,"ts_usec":723023,"thread":"35:0x740158e53cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"recovery log replay has successfully finished and ran for 0 milliseconds"}}}
+{"t":{"$date":"2026-05-27T15:05:04.723+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894304,"ts_usec":723243,"thread":"35:0x740158e53cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global recovery timestamp: (0, 0)"}}}
+{"t":{"$date":"2026-05-27T15:05:04.723+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894304,"ts_usec":723279,"thread":"35:0x740158e53cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global oldest timestamp: (0, 0)"}}}
+{"t":{"$date":"2026-05-27T15:05:04.723+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894304,"ts_usec":723370,"thread":"35:0x740158e53cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"recovery was completed successfully and took 0ms, including 0ms for the log replay, 0ms for the rollback to stable, and 0ms for the checkpoint."}}}
+{"t":{"$date":"2026-05-27T15:05:04.771+00:00"},"s":"I",  "c":"STORAGE",  "id":4795906, "ctx":"initandlisten","msg":"WiredTiger opened","attr":{"durationMillis":1006}}
+{"t":{"$date":"2026-05-27T15:05:04.771+00:00"},"s":"I",  "c":"RECOVERY", "id":23987,   "ctx":"initandlisten","msg":"WiredTiger recoveryTimestamp","attr":{"recoveryTimestamp":{"$timestamp":{"t":0,"i":0}}}}
+{"t":{"$date":"2026-05-27T15:05:04.854+00:00"},"s":"W",  "c":"CONTROL",  "id":22120,   "ctx":"initandlisten","msg":"Access control is not enabled for the database. Read and write access to data and configuration is unrestricted","tags":["startupWarnings"]}
+{"t":{"$date":"2026-05-27T15:05:04.855+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"initandlisten","msg":"createCollection","attr":{"namespace":"admin.system.version","uuidDisposition":"provided","uuid":{"uuid":{"$uuid":"9888dfd6-4652-4211-80e8-14c83f8b4751"}},"options":{"uuid":{"$uuid":"9888dfd6-4652-4211-80e8-14c83f8b4751"}}}}
+{"t":{"$date":"2026-05-27T15:05:04.906+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"initandlisten","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"9888dfd6-4652-4211-80e8-14c83f8b4751"}},"namespace":"admin.system.version","index":"_id_","ident":"index-1--7783298248763926802","collectionIdent":"collection-0--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:04.908+00:00"},"s":"I",  "c":"REPL",     "id":20459,   "ctx":"initandlisten","msg":"Setting featureCompatibilityVersion","attr":{"newVersion":"7.0"}}
+{"t":{"$date":"2026-05-27T15:05:04.908+00:00"},"s":"I",  "c":"REPL",     "id":5853300, "ctx":"initandlisten","msg":"current featureCompatibilityVersion value","attr":{"featureCompatibilityVersion":"7.0","context":"setFCV"}}
+{"t":{"$date":"2026-05-27T15:05:04.908+00:00"},"s":"I",  "c":"NETWORK",  "id":4915702, "ctx":"initandlisten","msg":"Updated wire specification","attr":{"oldSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":21},"outgoing":{"minWireVersion":6,"maxWireVersion":21},"isInternalClient":true},"newSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":21,"maxWireVersion":21},"outgoing":{"minWireVersion":21,"maxWireVersion":21},"isInternalClient":true}}}
+{"t":{"$date":"2026-05-27T15:05:04.909+00:00"},"s":"I",  "c":"NETWORK",  "id":4915702, "ctx":"initandlisten","msg":"Updated wire specification","attr":{"oldSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":21,"maxWireVersion":21},"outgoing":{"minWireVersion":21,"maxWireVersion":21},"isInternalClient":true},"newSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":21,"maxWireVersion":21},"outgoing":{"minWireVersion":21,"maxWireVersion":21},"isInternalClient":true}}}
+{"t":{"$date":"2026-05-27T15:05:04.909+00:00"},"s":"I",  "c":"REPL",     "id":5853300, "ctx":"initandlisten","msg":"current featureCompatibilityVersion value","attr":{"featureCompatibilityVersion":"7.0","context":"startup"}}
+{"t":{"$date":"2026-05-27T15:05:04.910+00:00"},"s":"I",  "c":"STORAGE",  "id":5071100, "ctx":"initandlisten","msg":"Clearing temp directory"}
+{"t":{"$date":"2026-05-27T15:05:04.910+00:00"},"s":"I",  "c":"CONTROL",  "id":6608200, "ctx":"initandlisten","msg":"Initializing cluster server parameters from disk"}
+{"t":{"$date":"2026-05-27T15:05:04.910+00:00"},"s":"I",  "c":"CONTROL",  "id":20536,   "ctx":"initandlisten","msg":"Flow Control is enabled on this deployment"}
+{"t":{"$date":"2026-05-27T15:05:04.913+00:00"},"s":"I",  "c":"FTDC",     "id":20625,   "ctx":"initandlisten","msg":"Initializing full-time diagnostic data capture","attr":{"dataDirectory":"/data/db/diagnostic.data"}}
+{"t":{"$date":"2026-05-27T15:05:04.922+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"initandlisten","msg":"createCollection","attr":{"namespace":"local.startup_log","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"23f19ba2-5f99-43de-bc6a-50d8b16b8608"}},"options":{"capped":true,"size":10485760}}}
+{"t":{"$date":"2026-05-27T15:05:04.968+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"initandlisten","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"23f19ba2-5f99-43de-bc6a-50d8b16b8608"}},"namespace":"local.startup_log","index":"_id_","ident":"index-3--7783298248763926802","collectionIdent":"collection-2--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:04.968+00:00"},"s":"I",  "c":"REPL",     "id":6015317, "ctx":"initandlisten","msg":"Setting new configuration state","attr":{"newState":"ConfigReplicationDisabled","oldState":"ConfigPreStart"}}
+{"t":{"$date":"2026-05-27T15:05:04.969+00:00"},"s":"I",  "c":"STORAGE",  "id":22262,   "ctx":"initandlisten","msg":"Timestamp monitor starting"}
+{"t":{"$date":"2026-05-27T15:05:04.974+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"LogicalSessionCacheRefresh","msg":"createCollection","attr":{"namespace":"config.system.sessions","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"9707e65e-4e01-4b07-aab5-76015bccccc0"}},"options":{}}}
+{"t":{"$date":"2026-05-27T15:05:04.975+00:00"},"s":"I",  "c":"NETWORK",  "id":23015,   "ctx":"listener","msg":"Listening on","attr":{"address":"/tmp/mongodb-27017.sock"}}
+{"t":{"$date":"2026-05-27T15:05:04.975+00:00"},"s":"I",  "c":"NETWORK",  "id":23015,   "ctx":"listener","msg":"Listening on","attr":{"address":"127.0.0.1"}}
+{"t":{"$date":"2026-05-27T15:05:04.975+00:00"},"s":"I",  "c":"NETWORK",  "id":23016,   "ctx":"listener","msg":"Waiting for connections","attr":{"port":27017,"ssl":"off"}}
+{"t":{"$date":"2026-05-27T15:05:04.975+00:00"},"s":"I",  "c":"CONTROL",  "id":20712,   "ctx":"LogicalSessionCacheReap","msg":"Sessions collection is not set up; waiting until next sessions reap interval","attr":{"error":"NamespaceNotFound: config.system.sessions does not exist"}}
+{"t":{"$date":"2026-05-27T15:05:04.981+00:00"},"s":"I",  "c":"CONTROL",  "id":8423403, "ctx":"initandlisten","msg":"mongod startup complete","attr":{"Summary of time elapsed":{"Startup from clean shutdown?":true,"Statistics":{"Transport layer setup":"0 ms","Run initial syncer crash recovery":"0 ms","Create storage engine lock file in the data directory":"0 ms","Get metadata describing storage engine":"0 ms","Create storage engine":"1058 ms","Write current PID to file":"10 ms","Write a new metadata for storage engine":"22 ms","Initialize FCV before rebuilding indexes":"1 ms","Drop abandoned idents and get back indexes that need to be rebuilt or builds that need to be restarted":"0 ms","Rebuild indexes for collections":"0 ms","Load cluster parameters from disk for a standalone":"0 ms","Build user and roles graph":"0 ms","Set up the background thread pool responsible for waiting for opTimes to be majority committed":"1 ms","Initialize information needed to make a mongod instance shard aware":"1 ms","Start up the replication coordinator":"0 ms","Start transport layer":"1 ms","_initAndListen total elapsed time":"1221 ms"}}}}
+child process started successfully, parent exiting
+{"t":{"$date":"2026-05-27T15:05:05.046+00:00"},"s":"I",  "c":"REPL",     "id":7360102, "ctx":"LogicalSessionCacheRefresh","msg":"Added oplog entry for create to transaction","attr":{"namespace":"config.$cmd","uuid":{"uuid":{"$uuid":"9707e65e-4e01-4b07-aab5-76015bccccc0"}},"object":{"create":"system.sessions","idIndex":{"v":2,"key":{"_id":1},"name":"_id_"}}}}
+{"t":{"$date":"2026-05-27T15:05:05.046+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"LogicalSessionCacheRefresh","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"config.$cmd","uuid":{"uuid":{"$uuid":"9707e65e-4e01-4b07-aab5-76015bccccc0"}},"object":{"createIndexes":"system.sessions","v":2,"key":{"lastUse":1},"name":"lsidTTLIndex","expireAfterSeconds":1800}}}
+{"t":{"$date":"2026-05-27T15:05:05.151+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"LogicalSessionCacheRefresh","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"9707e65e-4e01-4b07-aab5-76015bccccc0"}},"namespace":"config.system.sessions","index":"_id_","ident":"index-5--7783298248763926802","collectionIdent":"collection-4--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:05.152+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"LogicalSessionCacheRefresh","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"9707e65e-4e01-4b07-aab5-76015bccccc0"}},"namespace":"config.system.sessions","index":"lsidTTLIndex","ident":"index-6--7783298248763926802","collectionIdent":"collection-4--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:05.153+00:00"},"s":"I",  "c":"COMMAND",  "id":51803,   "ctx":"LogicalSessionCacheRefresh","msg":"Slow query","attr":{"type":"command","ns":"config.system.sessions","command":{"createIndexes":"system.sessions","v":2,"indexes":[{"key":{"lastUse":1},"name":"lsidTTLIndex","expireAfterSeconds":1800}],"ignoreUnknownIndexOptions":false,"writeConcern":{},"$db":"config"},"numYields":0,"reslen":114,"locks":{"ParallelBatchWriterMode":{"acquireCount":{"r":4}},"FeatureCompatibilityVersion":{"acquireCount":{"r":1,"w":3}},"ReplicationStateTransition":{"acquireCount":{"w":4}},"Global":{"acquireCount":{"r":1,"w":3}},"Database":{"acquireCount":{"r":1,"w":3}},"Collection":{"acquireCount":{"r":1,"w":3}},"Mutex":{"acquireCount":{"r":2}}},"flowControl":{"acquireCount":1},"storage":{},"cpuNanos":16157358,"protocol":"op_msg","durationMillis":178}}
+{"t":{"$date":"2026-05-27T15:05:08.565+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:34522","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"0c06828e-8ae6-4d06-8f76-6e5905c8b359"}},"connectionId":1,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:08.571+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn1","msg":"client metadata","attr":{"remote":"127.0.0.1:34522","client":"conn1","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:08.572+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn1","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:34522","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:08.647+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:34528","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"3bd9ed9c-97a6-4833-8344-30ad4ce61184"}},"connectionId":2,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:08.655+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn2","msg":"client metadata","attr":{"remote":"127.0.0.1:34528","client":"conn2","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:08.655+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn2","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:34528","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:08.792+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn2","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":137}}
+{"t":{"$date":"2026-05-27T15:05:09.579+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn2","msg":"Connection ended","attr":{"remote":"127.0.0.1:34528","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"3bd9ed9c-97a6-4833-8344-30ad4ce61184"}},"connectionId":2,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:09.644+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:34544","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"d3f1b9d8-174b-4b3c-801f-9d48fe80b259"}},"connectionId":3,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:09.646+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:34554","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"194ee331-2bd0-4760-9f67-c6ac9d639378"}},"connectionId":4,"connectionCount":3}}
+{"t":{"$date":"2026-05-27T15:05:09.660+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn3","msg":"client metadata","attr":{"remote":"127.0.0.1:34544","client":"conn3","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:09.660+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn3","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:34544","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:09.662+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn4","msg":"client metadata","attr":{"remote":"127.0.0.1:34554","client":"conn4","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:09.662+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn4","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:34554","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:09.674+00:00"},"s":"I",  "c":"-",        "id":20883,   "ctx":"conn1","msg":"Interrupted operation as its client disconnected","attr":{"opId":71}}
+{"t":{"$date":"2026-05-27T15:05:09.675+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn1","msg":"Connection ended","attr":{"remote":"127.0.0.1:34522","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"0c06828e-8ae6-4d06-8f76-6e5905c8b359"}},"connectionId":1,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:09.677+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn3","msg":"Connection ended","attr":{"remote":"127.0.0.1:34544","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"d3f1b9d8-174b-4b3c-801f-9d48fe80b259"}},"connectionId":3,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:09.741+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn4","msg":"Connection ended","attr":{"remote":"127.0.0.1:34554","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"194ee331-2bd0-4760-9f67-c6ac9d639378"}},"connectionId":4,"connectionCount":0}}
+{"t":{"$date":"2026-05-27T15:05:13.239+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50684","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"da6f7b39-0803-4302-acb0-b3029a130d95"}},"connectionId":5,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:13.242+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn5","msg":"client metadata","attr":{"remote":"127.0.0.1:50684","client":"conn5","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.243+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn5","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50684","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.249+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50692","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"3bec30cf-30a0-41a7-9cd8-a9e18736ed64"}},"connectionId":6,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:13.251+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn6","msg":"client metadata","attr":{"remote":"127.0.0.1:50692","client":"conn6","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.251+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn6","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50692","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.353+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn6","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":102}}
+{"t":{"$date":"2026-05-27T15:05:13.944+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50700","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"c5c82d0f-a9c4-432d-8349-f4ffbcccb20b"}},"connectionId":7,"connectionCount":3}}
+{"t":{"$date":"2026-05-27T15:05:13.945+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50704","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"162785e3-5808-4965-9747-f513b9ff911d"}},"connectionId":8,"connectionCount":4}}
+{"t":{"$date":"2026-05-27T15:05:13.961+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn7","msg":"client metadata","attr":{"remote":"127.0.0.1:50700","client":"conn7","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.961+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn7","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50700","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.964+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn8","msg":"client metadata","attr":{"remote":"127.0.0.1:50704","client":"conn8","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:13.965+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn8","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50704","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:14.049+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn8","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":85}}
+admin> | | | | {"t":{"$date":"2026-05-27T15:05:15.370+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn7","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":1409}}
+{"t":{"$date":"2026-05-27T15:05:15.477+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"conn7","msg":"createCollection","attr":{"namespace":"admin.system.users","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"9ad22804-67fa-47ed-899b-7bb88503f871"}},"options":{}}}
+{"t":{"$date":"2026-05-27T15:05:15.550+00:00"},"s":"I",  "c":"REPL",     "id":7360102, "ctx":"conn7","msg":"Added oplog entry for create to transaction","attr":{"namespace":"admin.$cmd","uuid":{"uuid":{"$uuid":"9ad22804-67fa-47ed-899b-7bb88503f871"}},"object":{"create":"system.users","idIndex":{"v":2,"key":{"_id":1},"name":"_id_"}}}}
+{"t":{"$date":"2026-05-27T15:05:15.551+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn7","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"admin.$cmd","uuid":{"uuid":{"$uuid":"9ad22804-67fa-47ed-899b-7bb88503f871"}},"object":{"createIndexes":"system.users","name":"user_1_db_1","key":{"user":1,"db":1},"unique":true,"v":2}}}
+{"t":{"$date":"2026-05-27T15:05:15.571+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn7","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"9ad22804-67fa-47ed-899b-7bb88503f871"}},"namespace":"admin.system.users","index":"_id_","ident":"index-8--7783298248763926802","collectionIdent":"collection-7--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:15.571+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn7","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"9ad22804-67fa-47ed-899b-7bb88503f871"}},"namespace":"admin.system.users","index":"user_1_db_1","ident":"index-9--7783298248763926802","collectionIdent":"collection-7--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:15.572+00:00"},"s":"I",  "c":"COMMAND",  "id":51803,   "ctx":"conn7","msg":"Slow query","attr":{"type":"command","ns":"admin.$cmd","appName":"mongosh 2.8.3","command":{"createUser":"admin","pwd":"xxx","roles":[{"role":"root","db":"admin"}],"lsid":{"id":{"$uuid":"60e8596a-0116-4ac6-ba82-eb2b125861ce"}},"$db":"admin"},"numYields":0,"reslen":38,"locks":{"ParallelBatchWriterMode":{"acquireCount":{"r":4}},"FeatureCompatibilityVersion":{"acquireCount":{"w":4}},"ReplicationStateTransition":{"acquireCount":{"w":4}},"Global":{"acquireCount":{"w":4}},"Database":{"acquireCount":{"w":4}},"Collection":{"acquireCount":{"w":4}},"Mutex":{"acquireCount":{"r":1}}},"flowControl":{"acquireCount":4},"storage":{},"cpuNanos":63401049,"remote":"127.0.0.1:50700","protocol":"op_msg","durationMillis":202}}
+{ ok: 1 }
+admin> {"t":{"$date":"2026-05-27T15:05:15.641+00:00"},"s":"I",  "c":"-",        "id":20883,   "ctx":"conn5","msg":"Interrupted operation as its client disconnected","attr":{"opId":130}}
+{"t":{"$date":"2026-05-27T15:05:15.642+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn5","msg":"Connection ended","attr":{"remote":"127.0.0.1:50684","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"da6f7b39-0803-4302-acb0-b3029a130d95"}},"connectionId":5,"connectionCount":3}}
+{"t":{"$date":"2026-05-27T15:05:15.643+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn8","msg":"Connection ended","attr":{"remote":"127.0.0.1:50704","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"162785e3-5808-4965-9747-f513b9ff911d"}},"connectionId":8,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:15.644+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn6","msg":"Connection ended","attr":{"remote":"127.0.0.1:50692","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"3bec30cf-30a0-41a7-9cd8-a9e18736ed64"}},"connectionId":6,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:15.645+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn7","msg":"Connection ended","attr":{"remote":"127.0.0.1:50700","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"c5c82d0f-a9c4-432d-8349-f4ffbcccb20b"}},"connectionId":7,"connectionCount":0}}
+
+/usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/init.js
+{"t":{"$date":"2026-05-27T15:05:18.575+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50716","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"e267622b-5c0c-4d0e-8e98-0e016e1aa79b"}},"connectionId":9,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:18.643+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn9","msg":"client metadata","attr":{"remote":"127.0.0.1:50716","client":"conn9","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:18.643+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn9","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50716","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:18.660+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50718","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"4d3a7870-0fe7-48dd-8800-fa625c4b0cf9"}},"connectionId":10,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:18.663+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn10","msg":"client metadata","attr":{"remote":"127.0.0.1:50718","client":"conn10","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:18.663+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn10","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50718","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:18.774+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn10","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":111}}
+{"t":{"$date":"2026-05-27T15:05:19.264+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50728","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"dbd73abf-0feb-43dd-b280-3ab9487d0c10"}},"connectionId":11,"connectionCount":3}}
+{"t":{"$date":"2026-05-27T15:05:19.265+00:00"},"s":"I",  "c":"NETWORK",  "id":22943,   "ctx":"listener","msg":"Connection accepted","attr":{"remote":"127.0.0.1:50744","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"72f1964d-c80a-4908-8726-a43a19360495"}},"connectionId":12,"connectionCount":4}}
+{"t":{"$date":"2026-05-27T15:05:19.273+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn11","msg":"client metadata","attr":{"remote":"127.0.0.1:50728","client":"conn11","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:19.273+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn11","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50728","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:19.274+00:00"},"s":"I",  "c":"NETWORK",  "id":51800,   "ctx":"conn12","msg":"client metadata","attr":{"remote":"127.0.0.1:50744","client":"conn12","negotiatedCompressors":[],"doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:19.274+00:00"},"s":"I",  "c":"ACCESS",   "id":10483900,"ctx":"conn12","msg":"Connection not authenticating","attr":{"client":"127.0.0.1:50744","doc":{"application":{"name":"mongosh 2.8.3"},"driver":{"name":"nodejs|mongosh","version":"7.1.0|2.8.3"},"platform":"Node.js v24.15.0, LE","os":{"name":"linux","architecture":"x64","version":"3.10.0-327.22.2.el7.x86_64","type":"Linux"},"env":{"container":{"orchestrator":"kubernetes"}}}}}
+{"t":{"$date":"2026-05-27T15:05:19.349+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn12","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":75}}
+{"t":{"$date":"2026-05-27T15:05:19.859+00:00"},"s":"I",  "c":"NETWORK",  "id":6788700, "ctx":"conn11","msg":"Received first command on ingress connection since session start or auth handshake","attr":{"elapsedMillis":586}}
+{"t":{"$date":"2026-05-27T15:05:19.975+00:00"},"s":"I",  "c":"COMMAND",  "id":51803,   "ctx":"conn11","msg":"Slow query","attr":{"type":"command","ns":"challenge_db.$cmd","appName":"mongosh 2.8.3","command":{"createUser":"challenge_user","pwd":"xxx","roles":[{"role":"readWrite","db":"challenge_db"}],"lsid":{"id":{"$uuid":"1b12b8bf-87ce-4f72-9a42-4817e1137b5f"}},"$db":"challenge_db"},"numYields":0,"reslen":38,"locks":{"ParallelBatchWriterMode":{"acquireCount":{"r":2}},"FeatureCompatibilityVersion":{"acquireCount":{"w":2}},"ReplicationStateTransition":{"acquireCount":{"w":2}},"Global":{"acquireCount":{"w":2}},"Database":{"acquireCount":{"w":2}},"Collection":{"acquireCount":{"w":2}}},"flowControl":{"acquireCount":2},"storage":{},"cpuNanos":39635349,"remote":"127.0.0.1:50728","protocol":"op_msg","durationMillis":116}}
+{"t":{"$date":"2026-05-27T15:05:19.980+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"conn11","msg":"createCollection","attr":{"namespace":"challenge_db.challenges","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"options":{}}}
+{"t":{"$date":"2026-05-27T15:05:20.110+00:00"},"s":"I",  "c":"REPL",     "id":7360102, "ctx":"conn11","msg":"Added oplog entry for create to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"object":{"create":"challenges","idIndex":{"v":2,"key":{"_id":1},"name":"_id_"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.111+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"namespace":"challenge_db.challenges","index":"_id_","ident":"index-11--7783298248763926802","collectionIdent":"collection-10--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.111+00:00"},"s":"I",  "c":"COMMAND",  "id":51803,   "ctx":"conn11","msg":"Slow query","attr":{"type":"command","ns":"challenge_db.challenges","appName":"mongosh 2.8.3","command":{"create":"challenges","lsid":{"id":{"$uuid":"1b12b8bf-87ce-4f72-9a42-4817e1137b5f"}},"$db":"challenge_db"},"numYields":0,"reslen":38,"locks":{"ParallelBatchWriterMode":{"acquireCount":{"r":1}},"FeatureCompatibilityVersion":{"acquireCount":{"w":1}},"ReplicationStateTransition":{"acquireCount":{"w":1}},"Global":{"acquireCount":{"w":1}},"Database":{"acquireCount":{"w":1}},"Collection":{"acquireCount":{"w":1}},"Mutex":{"acquireCount":{"r":1}}},"flowControl":{"acquireCount":1},"storage":{},"cpuNanos":12044919,"remote":"127.0.0.1:50728","protocol":"op_msg","durationMillis":130}}
+{"t":{"$date":"2026-05-27T15:05:20.118+00:00"},"s":"I",  "c":"STORAGE",  "id":20320,   "ctx":"conn11","msg":"createCollection","attr":{"namespace":"challenge_db.challenge_progress","uuidDisposition":"generated","uuid":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"options":{}}}
+{"t":{"$date":"2026-05-27T15:05:20.159+00:00"},"s":"I",  "c":"REPL",     "id":7360102, "ctx":"conn11","msg":"Added oplog entry for create to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"object":{"create":"challenge_progress","idIndex":{"v":2,"key":{"_id":1},"name":"_id_"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.159+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"namespace":"challenge_db.challenge_progress","index":"_id_","ident":"index-13--7783298248763926802","collectionIdent":"collection-12--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.167+00:00"},"s":"I",  "c":"INDEX",    "id":20438,   "ctx":"conn11","msg":"Index build: registering","attr":{"buildUUID":{"uuid":{"$uuid":"65d771bb-67de-4ce7-b936-514da295bde9"}},"namespace":"challenge_db.challenges","collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"indexes":1,"firstIndex":{"name":"challengerId_1_state_1"},"command":{"createIndexes":"challenges","v":2,"indexes":[{"name":"challengerId_1_state_1","key":{"challengerId":1,"state":1}}],"ignoreUnknownIndexOptions":false}}}
+{"t":{"$date":"2026-05-27T15:05:20.168+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn11","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"object":{"createIndexes":"challenges","v":2,"key":{"challengerId":1,"state":1},"name":"challengerId_1_state_1"}}}
+{"t":{"$date":"2026-05-27T15:05:20.185+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"namespace":"challenge_db.challenges","index":"challengerId_1_state_1","ident":"index-14--7783298248763926802","collectionIdent":"collection-10--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.185+00:00"},"s":"I",  "c":"INDEX",    "id":20440,   "ctx":"conn11","msg":"Index build: waiting for index build to complete","attr":{"buildUUID":{"uuid":{"$uuid":"65d771bb-67de-4ce7-b936-514da295bde9"}},"deadline":{"$date":{"$numberLong":"9223372036854775807"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.185+00:00"},"s":"I",  "c":"INDEX",    "id":20447,   "ctx":"conn11","msg":"Index build: completed","attr":{"buildUUID":{"uuid":{"$uuid":"65d771bb-67de-4ce7-b936-514da295bde9"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.191+00:00"},"s":"I",  "c":"INDEX",    "id":20438,   "ctx":"conn11","msg":"Index build: registering","attr":{"buildUUID":{"uuid":{"$uuid":"786bdf84-6540-4456-aafa-d9cdc5a14b02"}},"namespace":"challenge_db.challenges","collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"indexes":1,"firstIndex":{"name":"opponentId_1_state_1"},"command":{"createIndexes":"challenges","v":2,"indexes":[{"name":"opponentId_1_state_1","key":{"opponentId":1,"state":1}}],"ignoreUnknownIndexOptions":false}}}
+{"t":{"$date":"2026-05-27T15:05:20.192+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn11","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"object":{"createIndexes":"challenges","v":2,"key":{"opponentId":1,"state":1},"name":"opponentId_1_state_1"}}}
+{"t":{"$date":"2026-05-27T15:05:20.213+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"namespace":"challenge_db.challenges","index":"opponentId_1_state_1","ident":"index-15--7783298248763926802","collectionIdent":"collection-10--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.213+00:00"},"s":"I",  "c":"INDEX",    "id":20440,   "ctx":"conn11","msg":"Index build: waiting for index build to complete","attr":{"buildUUID":{"uuid":{"$uuid":"786bdf84-6540-4456-aafa-d9cdc5a14b02"}},"deadline":{"$date":{"$numberLong":"9223372036854775807"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.213+00:00"},"s":"I",  "c":"INDEX",    "id":20447,   "ctx":"conn11","msg":"Index build: completed","attr":{"buildUUID":{"uuid":{"$uuid":"786bdf84-6540-4456-aafa-d9cdc5a14b02"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.220+00:00"},"s":"I",  "c":"INDEX",    "id":20438,   "ctx":"conn11","msg":"Index build: registering","attr":{"buildUUID":{"uuid":{"$uuid":"5491e72e-9b4b-47f1-ace1-110c7df7d8f4"}},"namespace":"challenge_db.challenges","collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"indexes":1,"firstIndex":{"name":"state_1_endDate_1"},"command":{"createIndexes":"challenges","v":2,"indexes":[{"name":"state_1_endDate_1","key":{"state":1,"endDate":1}}],"ignoreUnknownIndexOptions":false}}}
+{"t":{"$date":"2026-05-27T15:05:20.221+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn11","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"object":{"createIndexes":"challenges","v":2,"key":{"state":1,"endDate":1},"name":"state_1_endDate_1"}}}
+{"t":{"$date":"2026-05-27T15:05:20.245+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"namespace":"challenge_db.challenges","index":"state_1_endDate_1","ident":"index-16--7783298248763926802","collectionIdent":"collection-10--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.245+00:00"},"s":"I",  "c":"INDEX",    "id":20440,   "ctx":"conn11","msg":"Index build: waiting for index build to complete","attr":{"buildUUID":{"uuid":{"$uuid":"5491e72e-9b4b-47f1-ace1-110c7df7d8f4"}},"deadline":{"$date":{"$numberLong":"9223372036854775807"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.245+00:00"},"s":"I",  "c":"INDEX",    "id":20447,   "ctx":"conn11","msg":"Index build: completed","attr":{"buildUUID":{"uuid":{"$uuid":"5491e72e-9b4b-47f1-ace1-110c7df7d8f4"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.251+00:00"},"s":"I",  "c":"INDEX",    "id":20438,   "ctx":"conn11","msg":"Index build: registering","attr":{"buildUUID":{"uuid":{"$uuid":"0c5dab9b-4a33-4104-ae8d-4dfa45e51bf5"}},"namespace":"challenge_db.challenges","collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"indexes":1,"firstIndex":{"name":"active_challenge_pair"},"command":{"createIndexes":"challenges","v":2,"indexes":[{"name":"active_challenge_pair","key":{"challengerId":1,"opponentId":1,"state":1}}],"ignoreUnknownIndexOptions":false}}}
+{"t":{"$date":"2026-05-27T15:05:20.252+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn11","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"object":{"createIndexes":"challenges","v":2,"key":{"challengerId":1,"opponentId":1,"state":1},"name":"active_challenge_pair"}}}
+{"t":{"$date":"2026-05-27T15:05:20.273+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"4ecab3b9-8a2f-4649-af9f-6ddf08c0291b"}},"namespace":"challenge_db.challenges","index":"active_challenge_pair","ident":"index-17--7783298248763926802","collectionIdent":"collection-10--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.274+00:00"},"s":"I",  "c":"INDEX",    "id":20440,   "ctx":"conn11","msg":"Index build: waiting for index build to complete","attr":{"buildUUID":{"uuid":{"$uuid":"0c5dab9b-4a33-4104-ae8d-4dfa45e51bf5"}},"deadline":{"$date":{"$numberLong":"9223372036854775807"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.274+00:00"},"s":"I",  "c":"INDEX",    "id":20447,   "ctx":"conn11","msg":"Index build: completed","attr":{"buildUUID":{"uuid":{"$uuid":"0c5dab9b-4a33-4104-ae8d-4dfa45e51bf5"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.281+00:00"},"s":"I",  "c":"INDEX",    "id":20438,   "ctx":"conn11","msg":"Index build: registering","attr":{"buildUUID":{"uuid":{"$uuid":"a255ae72-38ae-4891-b533-14c1970e8f54"}},"namespace":"challenge_db.challenge_progress","collectionUUID":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"indexes":1,"firstIndex":{"name":"challengeId_1_userId_1"},"command":{"createIndexes":"challenge_progress","v":2,"indexes":[{"unique":true,"name":"challengeId_1_userId_1","key":{"challengeId":1,"userId":1}}],"ignoreUnknownIndexOptions":false}}}
+{"t":{"$date":"2026-05-27T15:05:20.281+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn11","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"object":{"createIndexes":"challenge_progress","v":2,"unique":true,"key":{"challengeId":1,"userId":1},"name":"challengeId_1_userId_1"}}}
+{"t":{"$date":"2026-05-27T15:05:20.301+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"namespace":"challenge_db.challenge_progress","index":"challengeId_1_userId_1","ident":"index-18--7783298248763926802","collectionIdent":"collection-12--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.301+00:00"},"s":"I",  "c":"INDEX",    "id":20440,   "ctx":"conn11","msg":"Index build: waiting for index build to complete","attr":{"buildUUID":{"uuid":{"$uuid":"a255ae72-38ae-4891-b533-14c1970e8f54"}},"deadline":{"$date":{"$numberLong":"9223372036854775807"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.301+00:00"},"s":"I",  "c":"INDEX",    "id":20447,   "ctx":"conn11","msg":"Index build: completed","attr":{"buildUUID":{"uuid":{"$uuid":"a255ae72-38ae-4891-b533-14c1970e8f54"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.306+00:00"},"s":"I",  "c":"INDEX",    "id":20438,   "ctx":"conn11","msg":"Index build: registering","attr":{"buildUUID":{"uuid":{"$uuid":"ea0df658-387d-4af6-a283-f328dd30e2a5"}},"namespace":"challenge_db.challenge_progress","collectionUUID":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"indexes":1,"firstIndex":{"name":"userId_1"},"command":{"createIndexes":"challenge_progress","v":2,"indexes":[{"name":"userId_1","key":{"userId":1}}],"ignoreUnknownIndexOptions":false}}}
+{"t":{"$date":"2026-05-27T15:05:20.307+00:00"},"s":"I",  "c":"REPL",     "id":7360100, "ctx":"conn11","msg":"Added oplog entry for createIndexes to transaction","attr":{"namespace":"challenge_db.$cmd","uuid":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"object":{"createIndexes":"challenge_progress","v":2,"key":{"userId":1},"name":"userId_1"}}}
+{"t":{"$date":"2026-05-27T15:05:20.330+00:00"},"s":"I",  "c":"INDEX",    "id":20345,   "ctx":"conn11","msg":"Index build: done building","attr":{"buildUUID":null,"collectionUUID":{"uuid":{"$uuid":"7485ffba-f34d-4ede-ac06-4fc3a81413d9"}},"namespace":"challenge_db.challenge_progress","index":"userId_1","ident":"index-19--7783298248763926802","collectionIdent":"collection-12--7783298248763926802","commitTimestamp":null}}
+{"t":{"$date":"2026-05-27T15:05:20.330+00:00"},"s":"I",  "c":"INDEX",    "id":20440,   "ctx":"conn11","msg":"Index build: waiting for index build to complete","attr":{"buildUUID":{"uuid":{"$uuid":"ea0df658-387d-4af6-a283-f328dd30e2a5"}},"deadline":{"$date":{"$numberLong":"9223372036854775807"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.330+00:00"},"s":"I",  "c":"INDEX",    "id":20447,   "ctx":"conn11","msg":"Index build: completed","attr":{"buildUUID":{"uuid":{"$uuid":"ea0df658-387d-4af6-a283-f328dd30e2a5"}}}}
+=== Challenge DB initialized successfully ===
+{"t":{"$date":"2026-05-27T15:05:20.340+00:00"},"s":"I",  "c":"-",        "id":20883,   "ctx":"conn9","msg":"Interrupted operation as its client disconnected","attr":{"opId":209}}
+{"t":{"$date":"2026-05-27T15:05:20.341+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn9","msg":"Connection ended","attr":{"remote":"127.0.0.1:50716","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"e267622b-5c0c-4d0e-8e98-0e016e1aa79b"}},"connectionId":9,"connectionCount":3}}
+{"t":{"$date":"2026-05-27T15:05:20.342+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn11","msg":"Connection ended","attr":{"remote":"127.0.0.1:50728","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"dbd73abf-0feb-43dd-b280-3ab9487d0c10"}},"connectionId":11,"connectionCount":2}}
+{"t":{"$date":"2026-05-27T15:05:20.342+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn12","msg":"Connection ended","attr":{"remote":"127.0.0.1:50744","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"72f1964d-c80a-4908-8726-a43a19360495"}},"connectionId":12,"connectionCount":1}}
+{"t":{"$date":"2026-05-27T15:05:20.343+00:00"},"s":"I",  "c":"NETWORK",  "id":22944,   "ctx":"conn10","msg":"Connection ended","attr":{"remote":"127.0.0.1:50718","isLoadBalanced":false,"uuid":{"uuid":{"$uuid":"4d3a7870-0fe7-48dd-8800-fa625c4b0cf9"}},"connectionId":10,"connectionCount":0}}
+
+
+
+{"t":{"$date":"2026-05-27T15:05:20.686+00:00"},"s":"I",  "c":"CONTROL",  "id":20698,   "ctx":"main","msg":"***** SERVER RESTARTED *****"}
+{"t":{"$date":"2026-05-27T15:05:20.741+00:00"},"s":"I",  "c":"NETWORK",  "id":4915701, "ctx":"main","msg":"Initialized wire specification","attr":{"spec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":21},"outgoing":{"minWireVersion":6,"maxWireVersion":21},"isInternalClient":true}}}
+{"t":{"$date":"2026-05-27T15:05:20.747+00:00"},"s":"I",  "c":"CONTROL",  "id":23285,   "ctx":"main","msg":"Automatically disabling TLS 1.0, to force-enable TLS 1.0 specify --sslDisabledProtocols 'none'"}
+{"t":{"$date":"2026-05-27T15:05:20.748+00:00"},"s":"I",  "c":"NETWORK",  "id":4648601, "ctx":"main","msg":"Implicit TCP FastOpen unavailable. If TCP FastOpen is required, set tcpFastOpenServer, tcpFastOpenClient, and tcpFastOpenQueueSize."}
+{"t":{"$date":"2026-05-27T15:05:20.753+00:00"},"s":"I",  "c":"REPL",     "id":5123008, "ctx":"main","msg":"Successfully registered PrimaryOnlyService","attr":{"service":"TenantMigrationDonorService","namespace":"config.tenantMigrationDonors"}}
+{"t":{"$date":"2026-05-27T15:05:20.754+00:00"},"s":"I",  "c":"REPL",     "id":5123008, "ctx":"main","msg":"Successfully registered PrimaryOnlyService","attr":{"service":"TenantMigrationRecipientService","namespace":"config.tenantMigrationRecipients"}}
+{"t":{"$date":"2026-05-27T15:05:20.754+00:00"},"s":"W",  "c":"NETWORK",  "id":11621101,"ctx":"main","msg":"Overriding max connections to honor `capMemoryConsumptionForPreAuthBuffers` settings","attr":{"limit":6553}}
+Killing process with pid: 35
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"CONTROL",  "id":23377,   "ctx":"SignalHandler","msg":"Received signal","attr":{"signal":15,"error":"Terminated"}}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"CONTROL",  "id":23378,   "ctx":"SignalHandler","msg":"Signal was sent by kill(2)","attr":{"pid":129,"uid":999}}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"CONTROL",  "id":23381,   "ctx":"SignalHandler","msg":"will terminate after current cmd ends"}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"REPL",     "id":4784900, "ctx":"SignalHandler","msg":"Stepping down the ReplicationCoordinator for shutdown","attr":{"waitTimeMillis":15000}}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"REPL",     "id":4794602, "ctx":"SignalHandler","msg":"Attempting to enter quiesce mode"}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"-",        "id":6371601, "ctx":"SignalHandler","msg":"Shutting down the FLE Crud thread pool"}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"COMMAND",  "id":4784901, "ctx":"SignalHandler","msg":"Shutting down the MirrorMaestro"}
+{"t":{"$date":"2026-05-27T15:05:20.755+00:00"},"s":"I",  "c":"SHARDING", "id":4784902, "ctx":"SignalHandler","msg":"Shutting down the WaitForMajorityService"}
+{"t":{"$date":"2026-05-27T15:05:20.758+00:00"},"s":"I",  "c":"CONTROL",  "id":4784903, "ctx":"SignalHandler","msg":"Shutting down the LogicalSessionCache"}
+{"t":{"$date":"2026-05-27T15:05:20.760+00:00"},"s":"I",  "c":"NETWORK",  "id":20562,   "ctx":"SignalHandler","msg":"Shutdown: going to close listening sockets"}
+{"t":{"$date":"2026-05-27T15:05:20.761+00:00"},"s":"I",  "c":"NETWORK",  "id":23017,   "ctx":"listener","msg":"removing socket file","attr":{"path":"/tmp/mongodb-27017.sock"}}
+{"t":{"$date":"2026-05-27T15:05:20.761+00:00"},"s":"I",  "c":"NETWORK",  "id":4784905, "ctx":"SignalHandler","msg":"Shutting down the global connection pool"}
+{"t":{"$date":"2026-05-27T15:05:20.761+00:00"},"s":"I",  "c":"CONTROL",  "id":4784906, "ctx":"SignalHandler","msg":"Shutting down the FlowControlTicketholder"}
+{"t":{"$date":"2026-05-27T15:05:20.761+00:00"},"s":"I",  "c":"-",        "id":20520,   "ctx":"SignalHandler","msg":"Stopping further Flow Control ticket acquisitions."}
+{"t":{"$date":"2026-05-27T15:05:20.761+00:00"},"s":"I",  "c":"CONTROL",  "id":4784908, "ctx":"SignalHandler","msg":"Shutting down the PeriodicThreadToAbortExpiredTransactions"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"REPL",     "id":4784909, "ctx":"SignalHandler","msg":"Shutting down the ReplicationCoordinator"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"SHARDING", "id":4784910, "ctx":"SignalHandler","msg":"Shutting down the ShardingInitializationMongoD"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"REPL",     "id":4784911, "ctx":"SignalHandler","msg":"Enqueuing the ReplicationStateTransitionLock for shutdown"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"-",        "id":4784912, "ctx":"SignalHandler","msg":"Killing all operations for shutdown"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"-",        "id":4695300, "ctx":"SignalHandler","msg":"Interrupted all currently running operations","attr":{"opsKilled":3}}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"TENANT_M", "id":5093807, "ctx":"SignalHandler","msg":"Shutting down all TenantMigrationAccessBlockers on global shutdown"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"ASIO",     "id":22582,   "ctx":"TenantMigrationBlockerNet","msg":"Killing all outstanding egress activity."}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"ASIO",     "id":6529201, "ctx":"SignalHandler","msg":"Network interface redundant shutdown","attr":{"state":"Stopped"}}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"ASIO",     "id":22582,   "ctx":"SignalHandler","msg":"Killing all outstanding egress activity."}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"COMMAND",  "id":4784913, "ctx":"SignalHandler","msg":"Shutting down all open transactions"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"REPL",     "id":4784914, "ctx":"SignalHandler","msg":"Acquiring the ReplicationStateTransitionLock for shutdown"}
+{"t":{"$date":"2026-05-27T15:05:20.762+00:00"},"s":"I",  "c":"INDEX",    "id":4784915, "ctx":"SignalHandler","msg":"Shutting down the IndexBuildsCoordinator"}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"NETWORK",  "id":4784918, "ctx":"SignalHandler","msg":"Shutting down the ReplicaSetMonitor"}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"SHARDING", "id":4784921, "ctx":"SignalHandler","msg":"Shutting down the MigrationUtilExecutor"}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"ASIO",     "id":22582,   "ctx":"MigrationUtil-TaskExecutor","msg":"Killing all outstanding egress activity."}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"COMMAND",  "id":4784923, "ctx":"SignalHandler","msg":"Shutting down the ServiceEntryPoint"}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"CONTROL",  "id":4784927, "ctx":"SignalHandler","msg":"Shutting down the HealthLog"}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"CONTROL",  "id":4784928, "ctx":"SignalHandler","msg":"Shutting down the TTL monitor"}
+{"t":{"$date":"2026-05-27T15:05:20.763+00:00"},"s":"I",  "c":"INDEX",    "id":3684100, "ctx":"SignalHandler","msg":"Shutting down TTL collection monitor thread"}
+{"t":{"$date":"2026-05-27T15:05:20.764+00:00"},"s":"I",  "c":"INDEX",    "id":3684101, "ctx":"SignalHandler","msg":"Finished shutting down TTL collection monitor thread"}
+{"t":{"$date":"2026-05-27T15:05:20.764+00:00"},"s":"I",  "c":"CONTROL",  "id":6278511, "ctx":"SignalHandler","msg":"Shutting down the Change Stream Expired Pre-images Remover"}
+{"t":{"$date":"2026-05-27T15:05:20.764+00:00"},"s":"I",  "c":"CONTROL",  "id":4784929, "ctx":"SignalHandler","msg":"Acquiring the global lock for shutdown"}
+{"t":{"$date":"2026-05-27T15:05:20.764+00:00"},"s":"I",  "c":"CONTROL",  "id":4784930, "ctx":"SignalHandler","msg":"Shutting down the storage engine"}
+{"t":{"$date":"2026-05-27T15:05:20.764+00:00"},"s":"I",  "c":"STORAGE",  "id":22320,   "ctx":"SignalHandler","msg":"Shutting down journal flusher thread"}
+{"t":{"$date":"2026-05-27T15:05:20.765+00:00"},"s":"I",  "c":"STORAGE",  "id":22321,   "ctx":"SignalHandler","msg":"Finished shutting down journal flusher thread"}
+{"t":{"$date":"2026-05-27T15:05:20.765+00:00"},"s":"I",  "c":"STORAGE",  "id":22322,   "ctx":"SignalHandler","msg":"Shutting down checkpoint thread"}
+{"t":{"$date":"2026-05-27T15:05:20.766+00:00"},"s":"I",  "c":"STORAGE",  "id":22323,   "ctx":"SignalHandler","msg":"Finished shutting down checkpoint thread"}
+{"t":{"$date":"2026-05-27T15:05:20.766+00:00"},"s":"I",  "c":"STORAGE",  "id":22261,   "ctx":"SignalHandler","msg":"Timestamp monitor shutting down"}
+{"t":{"$date":"2026-05-27T15:05:20.768+00:00"},"s":"I",  "c":"STORAGE",  "id":20282,   "ctx":"SignalHandler","msg":"Deregistering all the collections"}
+{"t":{"$date":"2026-05-27T15:05:20.768+00:00"},"s":"I",  "c":"STORAGE",  "id":22317,   "ctx":"SignalHandler","msg":"WiredTigerKVEngine shutting down"}
+{"t":{"$date":"2026-05-27T15:05:20.768+00:00"},"s":"I",  "c":"STORAGE",  "id":22318,   "ctx":"SignalHandler","msg":"Shutting down session sweeper thread"}
+{"t":{"$date":"2026-05-27T15:05:20.769+00:00"},"s":"I",  "c":"STORAGE",  "id":22319,   "ctx":"SignalHandler","msg":"Finished shutting down session sweeper thread"}
+{"t":{"$date":"2026-05-27T15:05:20.772+00:00"},"s":"I",  "c":"STORAGE",  "id":4795902, "ctx":"SignalHandler","msg":"Closing WiredTiger","attr":{"closeConfig":"leak_memory=true,use_timestamp=false,"}}
+{"t":{"$date":"2026-05-27T15:05:20.779+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"SignalHandler","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894320,"ts_usec":779086,"thread":"35:0x740158e52640","session_name":"close_ckpt","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 85, snapshot max: 85 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 1"}}}
+{"t":{"$date":"2026-05-27T15:05:20.886+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"SignalHandler","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894320,"ts_usec":886537,"thread":"35:0x740158e52640","session_name":"WT_CONNECTION.close","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"shutdown checkpoint has successfully finished and ran for 113 milliseconds"}}}
+{"t":{"$date":"2026-05-27T15:05:20.887+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"SignalHandler","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894320,"ts_usec":886999,"thread":"35:0x740158e52640","session_name":"WT_CONNECTION.close","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"shutdown was completed successfully and took 114ms, including 0ms for the rollback to stable, and 113ms for the checkpoint."}}}
+{"t":{"$date":"2026-05-27T15:05:20.934+00:00"},"s":"I",  "c":"STORAGE",  "id":4795901, "ctx":"SignalHandler","msg":"WiredTiger closed","attr":{"durationMillis":162}}
+{"t":{"$date":"2026-05-27T15:05:20.934+00:00"},"s":"I",  "c":"STORAGE",  "id":22279,   "ctx":"SignalHandler","msg":"shutdown: removing fs lock..."}
+{"t":{"$date":"2026-05-27T15:05:20.935+00:00"},"s":"I",  "c":"-",        "id":4784931, "ctx":"SignalHandler","msg":"Dropping the scope cache for shutdown"}
+{"t":{"$date":"2026-05-27T15:05:20.935+00:00"},"s":"I",  "c":"FTDC",     "id":20626,   "ctx":"SignalHandler","msg":"Shutting down full-time diagnostic data capture"}
+{"t":{"$date":"2026-05-27T15:05:20.942+00:00"},"s":"I",  "c":"-",        "id":10175800,"ctx":"SignalHandler","msg":"Shutting down the standalone executor"}
+{"t":{"$date":"2026-05-27T15:05:20.945+00:00"},"s":"I",  "c":"ASIO",     "id":22582,   "ctx":"StandaloneNetwork","msg":"Killing all outstanding egress activity."}
+{"t":{"$date":"2026-05-27T15:05:20.945+00:00"},"s":"I",  "c":"CONTROL",  "id":20565,   "ctx":"SignalHandler","msg":"Now exiting"}
+{"t":{"$date":"2026-05-27T15:05:20.946+00:00"},"s":"I",  "c":"CONTROL",  "id":8423404, "ctx":"SignalHandler","msg":"mongod shutdown complete","attr":{"Summary of time elapsed":{"Statistics":{"Enter terminal shutdown":"0 ms","Step down the replication coordinator for shutdown":"0 ms","Time spent in quiesce mode":"0 ms","Shut down FLE Crud subsystem":"0 ms","Shut down MirrorMaestro":"0 ms","Shut down WaitForMajorityService":"3 ms","Shut down the logical session cache":"0 ms","Shut down the transport layer":"3 ms","Shut down the global connection pool":"0 ms","Shut down the flow control ticket holder":"0 ms","Kill all operations for shutdown":"0 ms","Shut down all tenant migration access blockers on global shutdown":"0 ms","Shut down all open transactions":"0 ms","Acquire the RSTL for shutdown":"0 ms","Shut down the IndexBuildsCoordinator and wait for index builds to finish":"0 ms","Shut down the replica set monitor":"1 ms","Shut down the migration util executor":"0 ms","Shut down the health log":"0 ms","Shut down the TTL monitor":"1 ms","Shut down expired pre-images and documents removers":"0 ms","Shut down the storage engine":"171 ms","Wait for the oplog cap maintainer thread to stop":"0 ms","Shut down full-time data capture":"2 ms","Shut down standalone executor":"8 ms","shutdownTask total elapsed time":"190 ms"}}}}
+{"t":{"$date":"2026-05-27T15:05:20.946+00:00"},"s":"I",  "c":"CONTROL",  "id":23138,   "ctx":"SignalHandler","msg":"Shutting down","attr":{"exitCode":0}}
+
+MongoDB init process complete; ready for start up.
+
+{"t":{"$date":"2026-05-27T15:05:21.955+00:00"},"s":"I",  "c":"NETWORK",  "id":4915701, "ctx":"main","msg":"Initialized wire specification","attr":{"spec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":21},"outgoing":{"minWireVersion":6,"maxWireVersion":21},"isInternalClient":true}}}
+{"t":{"$date":"2026-05-27T15:05:21.955+00:00"},"s":"I",  "c":"CONTROL",  "id":23285,   "ctx":"main","msg":"Automatically disabling TLS 1.0, to force-enable TLS 1.0 specify --sslDisabledProtocols 'none'"}
+{"t":{"$date":"2026-05-27T15:05:21.957+00:00"},"s":"I",  "c":"NETWORK",  "id":4648601, "ctx":"main","msg":"Implicit TCP FastOpen unavailable. If TCP FastOpen is required, set tcpFastOpenServer, tcpFastOpenClient, and tcpFastOpenQueueSize."}
+{"t":{"$date":"2026-05-27T15:05:21.959+00:00"},"s":"I",  "c":"REPL",     "id":5123008, "ctx":"main","msg":"Successfully registered PrimaryOnlyService","attr":{"service":"TenantMigrationDonorService","namespace":"config.tenantMigrationDonors"}}
+{"t":{"$date":"2026-05-27T15:05:21.959+00:00"},"s":"I",  "c":"REPL",     "id":5123008, "ctx":"main","msg":"Successfully registered PrimaryOnlyService","attr":{"service":"TenantMigrationRecipientService","namespace":"config.tenantMigrationRecipients"}}
+{"t":{"$date":"2026-05-27T15:05:21.959+00:00"},"s":"W",  "c":"NETWORK",  "id":11621101,"ctx":"main","msg":"Overriding max connections to honor `capMemoryConsumptionForPreAuthBuffers` settings","attr":{"limit":6553}}
+{"t":{"$date":"2026-05-27T15:05:21.959+00:00"},"s":"I",  "c":"CONTROL",  "id":5945603, "ctx":"main","msg":"Multi threading initialized"}
+{"t":{"$date":"2026-05-27T15:05:21.960+00:00"},"s":"I",  "c":"TENANT_M", "id":7091600, "ctx":"main","msg":"Starting TenantMigrationAccessBlockerRegistry"}
+{"t":{"$date":"2026-05-27T15:05:21.961+00:00"},"s":"I",  "c":"CONTROL",  "id":4615611, "ctx":"initandlisten","msg":"MongoDB starting","attr":{"pid":1,"port":27017,"dbPath":"/data/db","architecture":"64-bit","host":"mongodb-challenges-6bfb9dc997-5fbcc"}}
+{"t":{"$date":"2026-05-27T15:05:21.961+00:00"},"s":"W",  "c":"CONTROL",  "id":20720,   "ctx":"initandlisten","msg":"Memory available to mongo process is less than total system memory","attr":{"availableMemSizeMB":512,"systemMemSizeMB":9603}}
+{"t":{"$date":"2026-05-27T15:05:21.961+00:00"},"s":"I",  "c":"CONTROL",  "id":23403,   "ctx":"initandlisten","msg":"Build Info","attr":{"buildInfo":{"version":"7.0.34","gitVersion":"ed9a6630253d3bc301e5ef19606704715d1e2066","openSSLVersion":"OpenSSL 3.0.2 15 Mar 2022","modules":[],"allocator":"tcmalloc","environment":{"distmod":"ubuntu2204","distarch":"x86_64","target_arch":"x86_64"}}}}
+{"t":{"$date":"2026-05-27T15:05:21.962+00:00"},"s":"I",  "c":"CONTROL",  "id":51765,   "ctx":"initandlisten","msg":"Operating System","attr":{"os":{"name":"Ubuntu","version":"22.04"}}}
+{"t":{"$date":"2026-05-27T15:05:21.962+00:00"},"s":"I",  "c":"CONTROL",  "id":21951,   "ctx":"initandlisten","msg":"Options set by command line","attr":{"options":{"net":{"bindIp":"*"},"security":{"authorization":"enabled"}}}}
+{"t":{"$date":"2026-05-27T15:05:21.962+00:00"},"s":"W",  "c":"NETWORK",  "id":11621101,"ctx":"initandlisten","msg":"Overriding max connections to honor `capMemoryConsumptionForPreAuthBuffers` settings","attr":{"limit":6553}}
+{"t":{"$date":"2026-05-27T15:05:21.964+00:00"},"s":"I",  "c":"STORAGE",  "id":22270,   "ctx":"initandlisten","msg":"Storage engine to use detected by data files","attr":{"dbpath":"/data/db","storageEngine":"wiredTiger"}}
+{"t":{"$date":"2026-05-27T15:05:21.965+00:00"},"s":"I",  "c":"STORAGE",  "id":22297,   "ctx":"initandlisten","msg":"Using the XFS filesystem is strongly recommended with the WiredTiger storage engine. See http://dochub.mongodb.org/core/prodnotes-filesystem","tags":["startupWarnings"]}
+{"t":{"$date":"2026-05-27T15:05:21.965+00:00"},"s":"I",  "c":"STORAGE",  "id":22315,   "ctx":"initandlisten","msg":"Opening WiredTiger","attr":{"config":"create,cache_size=256M,session_max=33000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,remove=true,path=journal,compressor=snappy),builtin_extension_config=(zstd=(compression_level=6)),file_manager=(close_idle_time=600,close_scan_interval=10,close_handle_minimum=2000),statistics_log=(wait=0),json_output=(error,message),verbose=[recovery_progress:1,checkpoint_progress:1,compact_progress:1,backup:0,checkpoint:0,compact:0,evict:0,history_store:0,recovery:0,rts:0,salvage:0,tiered:0,timestamp:0,transaction:0,verify:0,log:0],"}}
+{"t":{"$date":"2026-05-27T15:05:22.794+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894322,"ts_usec":794356,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Recovering log 1 through 2"}}}
+{"t":{"$date":"2026-05-27T15:05:23.359+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894323,"ts_usec":359762,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Recovering log 2 through 2"}}}
+{"t":{"$date":"2026-05-27T15:05:24.175+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894324,"ts_usec":175600,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Main recovery loop: starting at 1/55680 to 2/256"}}}
+{"t":{"$date":"2026-05-27T15:05:24.640+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894324,"ts_usec":640921,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Recovering log 1 through 2"}}}
+{"t":{"$date":"2026-05-27T15:05:25.149+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":149177,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Recovering log 2 through 2"}}}
+{"t":{"$date":"2026-05-27T15:05:25.752+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":752826,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"recovery log replay has successfully finished and ran for 2959 milliseconds"}}}
+{"t":{"$date":"2026-05-27T15:05:25.753+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":753050,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global recovery timestamp: (0, 0)"}}}
+{"t":{"$date":"2026-05-27T15:05:25.753+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":753102,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"Set global oldest timestamp: (0, 0)"}}}
+{"t":{"$date":"2026-05-27T15:05:25.754+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":754101,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"recovery rollback to stable has successfully finished and ran for 0 milliseconds"}}}
+{"t":{"$date":"2026-05-27T15:05:25.761+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":761202,"thread":"1:0x7039705a9cc0","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 1, snapshot max: 1 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:05:25.865+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":864969,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"recovery checkpoint has successfully finished and ran for 109 milliseconds"}}}
+{"t":{"$date":"2026-05-27T15:05:25.865+00:00"},"s":"I",  "c":"WTRECOV",  "id":22430,   "ctx":"initandlisten","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894325,"ts_usec":865228,"thread":"1:0x7039705a9cc0","session_name":"txn-recover","category":"WT_VERB_RECOVERY_PROGRESS","category_id":30,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"recovery was completed successfully and took 3071ms, including 2959ms for the log replay, 0ms for the rollback to stable, and 109ms for the checkpoint."}}}
+{"t":{"$date":"2026-05-27T15:05:25.937+00:00"},"s":"I",  "c":"STORAGE",  "id":4795906, "ctx":"initandlisten","msg":"WiredTiger opened","attr":{"durationMillis":3971}}
+{"t":{"$date":"2026-05-27T15:05:25.937+00:00"},"s":"I",  "c":"RECOVERY", "id":23987,   "ctx":"initandlisten","msg":"WiredTiger recoveryTimestamp","attr":{"recoveryTimestamp":{"$timestamp":{"t":0,"i":0}}}}
+{"t":{"$date":"2026-05-27T15:05:26.053+00:00"},"s":"I",  "c":"NETWORK",  "id":4915702, "ctx":"initandlisten","msg":"Updated wire specification","attr":{"oldSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":0,"maxWireVersion":21},"outgoing":{"minWireVersion":6,"maxWireVersion":21},"isInternalClient":true},"newSpec":{"incomingExternalClient":{"minWireVersion":0,"maxWireVersion":21},"incomingInternalClient":{"minWireVersion":21,"maxWireVersion":21},"outgoing":{"minWireVersion":21,"maxWireVersion":21},"isInternalClient":true}}}
+{"t":{"$date":"2026-05-27T15:05:26.053+00:00"},"s":"I",  "c":"REPL",     "id":5853300, "ctx":"initandlisten","msg":"current featureCompatibilityVersion value","attr":{"featureCompatibilityVersion":"7.0","context":"startup"}}
+{"t":{"$date":"2026-05-27T15:05:26.054+00:00"},"s":"I",  "c":"STORAGE",  "id":5071100, "ctx":"initandlisten","msg":"Clearing temp directory"}
+{"t":{"$date":"2026-05-27T15:05:26.137+00:00"},"s":"I",  "c":"CONTROL",  "id":6608200, "ctx":"initandlisten","msg":"Initializing cluster server parameters from disk"}
+{"t":{"$date":"2026-05-27T15:05:26.137+00:00"},"s":"I",  "c":"CONTROL",  "id":20536,   "ctx":"initandlisten","msg":"Flow Control is enabled on this deployment"}
+{"t":{"$date":"2026-05-27T15:05:26.140+00:00"},"s":"I",  "c":"FTDC",     "id":20625,   "ctx":"initandlisten","msg":"Initializing full-time diagnostic data capture","attr":{"dataDirectory":"/data/db/diagnostic.data"}}
+{"t":{"$date":"2026-05-27T15:05:26.173+00:00"},"s":"I",  "c":"REPL",     "id":6015317, "ctx":"initandlisten","msg":"Setting new configuration state","attr":{"newState":"ConfigReplicationDisabled","oldState":"ConfigPreStart"}}
+{"t":{"$date":"2026-05-27T15:05:26.173+00:00"},"s":"I",  "c":"STORAGE",  "id":22262,   "ctx":"initandlisten","msg":"Timestamp monitor starting"}
+{"t":{"$date":"2026-05-27T15:05:26.182+00:00"},"s":"I",  "c":"NETWORK",  "id":23015,   "ctx":"listener","msg":"Listening on","attr":{"address":"/tmp/mongodb-27017.sock"}}
+{"t":{"$date":"2026-05-27T15:05:26.183+00:00"},"s":"I",  "c":"NETWORK",  "id":23015,   "ctx":"listener","msg":"Listening on","attr":{"address":"0.0.0.0"}}
+{"t":{"$date":"2026-05-27T15:05:26.183+00:00"},"s":"I",  "c":"NETWORK",  "id":23016,   "ctx":"listener","msg":"Waiting for connections","attr":{"port":27017,"ssl":"off"}}
+{"t":{"$date":"2026-05-27T15:05:26.183+00:00"},"s":"I",  "c":"CONTROL",  "id":8423403, "ctx":"initandlisten","msg":"mongod startup complete","attr":{"Summary of time elapsed":{"Startup from clean shutdown?":true,"Statistics":{"Transport layer setup":"0 ms","Run initial syncer crash recovery":"0 ms","Create storage engine lock file in the data directory":"0 ms","Get metadata describing storage engine":"0 ms","Validate options in metadata against current startup options":"0 ms","Create storage engine":"3994 ms","Write current PID to file":"82 ms","Initialize FCV before rebuilding indexes":"11 ms","Drop abandoned idents and get back indexes that need to be rebuilt or builds that need to be restarted":"0 ms","Rebuild indexes for collections":"0 ms","Load cluster parameters from disk for a standalone":"0 ms","Build user and roles graph":"0 ms","Verify indexes for admin.system.users collection":"0 ms","Set up the background thread pool responsible for waiting for opTimes to be majority committed":"1 ms","Initialize information needed to make a mongod instance shard aware":"2 ms","Start up the replication coordinator":"1 ms","Start transport layer":"2 ms","_initAndListen total elapsed time":"4222 ms"}}}}
+{"t":{"$date":"2026-05-27T15:06:26.037+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894386,"ts_usec":37149,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 4, snapshot max: 4 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:07:26.064+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894446,"ts_usec":64689,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 5, snapshot max: 5 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:08:26.097+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894506,"ts_usec":97195,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 6, snapshot max: 6 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:09:26.129+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894566,"ts_usec":129494,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 7, snapshot max: 7 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:10:26.148+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894626,"ts_usec":148182,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 8, snapshot max: 8 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:11:26.155+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894686,"ts_usec":155650,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 9, snapshot max: 9 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:12:26.169+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894746,"ts_usec":169357,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 10, snapshot max: 10 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:13:26.179+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894806,"ts_usec":179467,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 11, snapshot max: 11 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:14:26.188+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894866,"ts_usec":188488,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 12, snapshot max: 12 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:15:26.199+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894926,"ts_usec":199240,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 13, snapshot max: 13 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:16:26.206+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779894986,"ts_usec":206311,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 14, snapshot max: 14 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:17:26.213+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779895046,"ts_usec":213450,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 15, snapshot max: 15 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+{"t":{"$date":"2026-05-27T15:18:26.220+00:00"},"s":"I",  "c":"WTCHKPT",  "id":22430,   "ctx":"Checkpointer","msg":"WiredTiger message","attr":{"message":{"ts_sec":1779895106,"ts_usec":220897,"thread":"1:0x703967596640","session_name":"WT_SESSION.checkpoint","category":"WT_VERB_CHECKPOINT_PROGRESS","category_id":6,"verbose_level":"DEBUG_1","verbose_level_id":1,"msg":"saving checkpoint snapshot min: 16, snapshot max: 16 snapshot count: 0, oldest timestamp: (0, 0) , meta checkpoint timestamp: (0, 0) base write gen: 8"}}}
+"
