@@ -264,7 +264,7 @@ spec:
             - -c
 
           args:
-            - npx prisma migrate deploy && node dist/src/main.js
+            - sleep infinity
           ports:
             - containerPort: 3001
               name: http
@@ -312,11 +312,11 @@ spec:
             periodSeconds: 30
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "150m"
-            limits:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
 ---
 apiVersion: v1
 kind: Service
