@@ -37,11 +37,16 @@ export class AuthGuard implements CanActivate {
       const identityUrl = this.configService.get<string>(
         'IDENTITY_SERVICE_URL',
       );
+      const internalKey = this.configService.get<string>(
+        'INTERNAL_SERVICE_KEY',
+      );
 
       const { data } = await firstValueFrom(
-        this.httpService.post(`${identityUrl}/auth/validate-token`, {
-          token,
-        }),
+        this.httpService.post(
+          `${identityUrl}/auth/validate-token`,
+          { token },
+          { headers: { 'X-Internal-Service-Key': internalKey } },
+        ),
       );
 
       if (!data.valid) {
@@ -56,6 +61,7 @@ export class AuthGuard implements CanActivate {
         user_id: data.user_id,
         email: data.email,
         rol: data.rol,
+        token,
       };
 
       request.user = user;

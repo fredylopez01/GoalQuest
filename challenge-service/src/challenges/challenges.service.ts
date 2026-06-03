@@ -76,20 +76,18 @@ export class ChallengesService {
   // ============================================================
   // HELPER: Obtener nombre de usuario desde identity-service
   // ============================================================
-  private async getUserName(userId: string): Promise<string> {
+  private async getUserName(userId: string, token: string): Promise<string> {
     try {
       const identityUrl = this.getServiceUrl(
         'identity-service',
         'IDENTITY_SERVICE_URL',
       );
 
-      const internalKey = this.configService.get<string>(
-        'INTERNAL_SERVICE_KEY',
-      );
-
+      // identity GET /users/:id requiere Bearer Token (no la clave interna),
+      // así que reenviamos el token original del usuario.
       const { data } = await firstValueFrom(
         this.httpService.get(`${identityUrl}/users/${userId}`, {
-          headers: { 'X-Internal-Service-Key': internalKey },
+          headers: { Authorization: `Bearer ${token}` },
         }),
       );
 
@@ -118,10 +116,11 @@ export class ChallengesService {
   private async mapToResponseDto(
     challenge: ChallengeDocument,
     currentUserId: string,
+    token: string,
   ): Promise<ChallengeResponseDto> {
     const [challengerName, opponentName] = await Promise.all([
-      this.getUserName(challenge.challengerId),
-      this.getUserName(challenge.opponentId),
+      this.getUserName(challenge.challengerId, token),
+      this.getUserName(challenge.opponentId, token),
     ]);
 
     return {
@@ -247,19 +246,16 @@ export class ChallengesService {
       );
     }
 
-    // Verificar que el oponente existe
+    // Verificar que el oponente existe (identity GET /users/:id requiere Bearer)
     try {
       const identityUrl = this.getServiceUrl(
         'identity-service',
         'IDENTITY_SERVICE_URL',
       );
-      const internalKey = this.configService.get<string>(
-        'INTERNAL_SERVICE_KEY',
-      );
 
       await firstValueFrom(
         this.httpService.get(`${identityUrl}/users/${dto.opponentId}`, {
-          headers: { 'X-Internal-Service-Key': internalKey },
+          headers: { Authorization: `Bearer ${user.token}` },
         }),
       );
     } catch (error) {
@@ -298,7 +294,7 @@ export class ChallengesService {
       result: null,
     });
 
-    return this.mapToResponseDto(challenge, challengerId);
+    return this.mapToResponseDto(challenge, challengerId, user.token);
   }
 
   // ============================================================
@@ -341,7 +337,7 @@ export class ChallengesService {
     ]);
 
     const data = await Promise.all(
-      challenges.map((c) => this.mapToResponseDto(c, userId)),
+      challenges.map((c) => this.mapToResponseDto(c, userId, user.token)),
     );
 
     return {
@@ -381,7 +377,11 @@ export class ChallengesService {
       );
     }
 
-    const baseResponse = await this.mapToResponseDto(challenge, userId);
+    const baseResponse = await this.mapToResponseDto(
+      challenge,
+      userId,
+      user.token,
+    );
 
     // Obtener progreso
     const challengeObjectId = new Types.ObjectId(challengeId);
@@ -402,8 +402,8 @@ export class ChallengesService {
     ]);
 
     const [challengerName, opponentName] = await Promise.all([
-      this.getUserName(challenge.challengerId),
-      this.getUserName(challenge.opponentId),
+      this.getUserName(challenge.challengerId, user.token),
+      this.getUserName(challenge.opponentId, user.token),
     ]);
 
     const mapProgress = (
@@ -505,7 +505,7 @@ export class ChallengesService {
       },
     ]);
 
-    return this.mapToResponseDto(challenge, userId);
+    return this.mapToResponseDto(challenge, userId, user.token);
   }
 
   // ============================================================
