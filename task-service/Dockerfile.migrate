@@ -1,0 +1,23 @@
+# task-service/Dockerfile.migrate  — versión limpia para Prisma 7
+FROM node:20-slim
+
+WORKDIR /app
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+COPY package*.json ./
+RUN npm ci
+
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+COPY tsconfig.json ./
+# Copiar src solo para que tsc no falle por imports
+COPY src ./src
+
+RUN npx prisma generate
+RUN npm run build
+
+# DATABASE_URL llega como env var desde el initContainer en K8s
+CMD ["node", "-e", "\
+const { execSync } = require('child_process');\
+execSync('npx prisma migrate deploy', { stdio: 'inherit', env: process.env });\
+"]

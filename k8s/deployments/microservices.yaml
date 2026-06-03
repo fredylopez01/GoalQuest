@@ -24,11 +24,10 @@ spec:
         app: eureka-server
         version: v1
       annotations:
-        # Istio lee estas anotaciones para configurar el sidecar
         sidecar.istio.io/inject: "true"
-        # Excluir puertos de la redirección de Envoy para health checks
-        traffic.sidecar.istio.io/excludeInboundPorts: ""
-        traffic.sidecar.istio.io/excludeOutboundPorts: ""
+        traffic.sidecar.istio.io/excludeInboundPorts: "8761"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "8761"
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
     spec:
       containers:
         - name: eureka-server
@@ -98,7 +97,6 @@ spec:
         version: v1
       annotations:
         sidecar.istio.io/inject: "true"
-        # Prometheus scraping desde Istio
         prometheus.io/scrape: "true"
         prometheus.io/port: "8081"
         prometheus.io/path: "/actuator/prometheus"
@@ -235,8 +233,6 @@ spec:
         version: v1
       annotations:
         sidecar.istio.io/inject: "true"
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "3001"
     spec:
       initContainers:
         - name: wait-for-db
@@ -255,16 +251,16 @@ spec:
               "-c",
               "until nc -z identity-service 8081; do echo waiting for identity-service; sleep 3; done",
             ]
+        - name: run-migrations
+          image: goalquest/task-migrate:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://tasks_user:tasks123@tasks-db:5432/tasks_db"
       containers:
         - name: task-service
           image: goalquest/task-service:latest
-          imagePullPolicy: Never
-          command:
-            - sh
-            - -c
-
-          args:
-            - sleep infinity
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3001
               name: http
@@ -290,8 +286,6 @@ spec:
                 secretKeyRef:
                   name: goalquest-secrets
                   key: INTERNAL_SERVICE_KEY
-            # Con Istio los servicios se resuelven por DNS de K8s,
-            # no se necesita Eureka para la URL, pero se mantiene como fallback
             - name: IDENTITY_SERVICE_URL
               value: "http://identity-service:8081"
             - name: GAMIFICATION_SERVICE_URL
@@ -304,6 +298,7 @@ spec:
               port: 3001
             initialDelaySeconds: 30
             periodSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /health
